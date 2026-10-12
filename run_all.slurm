@@ -20,10 +20,31 @@ CONFIG="${DOCKPIPE_CONFIG:-$PROJECT/configs/panel500.yaml}"
 ENV_NAME="${DOCKPIPE_ENV:-dockpipe}"
 MAMBA_ROOT="${MAMBA_ROOT_PREFIX:-/storage/users/kikolski/micromamba}"
 
+# --export=NONE means Lmod's shell function is not inherited either, and a
+# non-login bash does not source /etc/profile.d. Without this, `module` is
+# simply not a command inside the job.
+if ! command -v module >/dev/null 2>&1; then
+  for init in /etc/profile.d/lmod.sh /etc/profile.d/modules.sh \
+              /usr/share/lmod/lmod/init/bash; do
+    # shellcheck disable=SC1090
+    [[ -r "$init" ]] && source "$init" && break
+  done
+fi
+
 module purge
-export MAMBA_ROOT_PREFIX="$MAMBA_ROOT"
-eval "$("$MAMBA_ROOT/bin/micromamba" shell hook --shell bash)"
-micromamba activate "$ENV_NAME"
+
+# Two ways to get the environment. Set DOCKPIPE_MODULE to use the Lmod
+# modulefile (modulefiles/dockpipe/phase1.lua); otherwise fall back to
+# micromamba. Loading the module also supplies DOCKPIPE_PROJECT, but $PROJECT
+# was already resolved above, so an explicit DOCKPIPE_PROJECT still wins.
+if [[ -n "${DOCKPIPE_MODULE:-}" ]]; then
+  module use "${DOCKPIPE_MODULEPATH:-$PROJECT/modulefiles}"
+  module load "$DOCKPIPE_MODULE"
+else
+  export MAMBA_ROOT_PREFIX="$MAMBA_ROOT"
+  eval "$("$MAMBA_ROOT/bin/micromamba" shell hook --shell bash)"
+  micromamba activate "$ENV_NAME"
+fi
 
 export PYTHONNOUSERSITE=1
 export PYTHONPATH="$PROJECT${PYTHONPATH:+:$PYTHONPATH}"
@@ -76,8 +97,14 @@ if bad:
 PY
 echo "=========================================="
 
-# A resolvable record of the whole env, next to the results.
-micromamba list --export > "logs/env_${SLURM_JOB_ID:-local}.txt" 2>/dev/null || true
+# A reinstallable record of the whole env, next to the logs. Which of these
+# works depends on how the env was provided, so try each.
+{
+  micromamba list --export 2>/dev/null \
+    || conda list --export 2>/dev/null \
+    || python -m pip freeze 2>/dev/null \
+    || true
+} > "logs/env_${SLURM_JOB_ID:-local}.txt"
 
 # One job, five job steps. Each srun is a separate step so `sacct -j <id>` shows
 # per-stage timing and exit codes, and set -e aborts the rest on failure.

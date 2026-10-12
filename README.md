@@ -166,6 +166,45 @@ a few tenths of a kcal/mol, exhaustiveness is too low for that panel.
 otherwise oversubscribe the node, which is also why the sbatch scripts export
 `OMP_NUM_THREADS=1`.
 
+## Environment via Lmod
+
+`modulefiles/dockpipe/phase1.lua` wraps the conda env as a module, following the
+group's convention (PATH prepend plus `CONDA_*`, no `conda activate`). To use it
+instead of micromamba, set `DOCKPIPE_MODULE`:
+
+```bash
+DOCKPIPE_MODULE=dockpipe/phase1 sbatch run_all.slurm
+# or interactively:
+module use /storage/users/kikolski/screening-dock/modulefiles
+module load dockpipe/phase1
+```
+
+With `DOCKPIPE_MODULE` unset the script falls back to micromamba, so both work
+and nothing breaks before the module is installed. `DOCKPIPE_MODULEPATH`
+overrides where `module use` looks, for when an admin installs the file on the
+system `MODULEPATH` instead.
+
+The modulefile sets `DOCKPIPE_PROJECT`, so a `module load` alone points the
+pipeline at the right checkout. It deliberately does **not** set thread limits:
+Vina runs single-threaded with parallelism from the worker pool, which is a
+property of the job, not the environment.
+
+Two things to know:
+
+- **A `vina` module is not a substitute.** `docking.py` uses the Vina Python
+  API (`from vina import Vina`); a CLI-only `module load vina` does not satisfy
+  that import, and the job would die at the docking stage after prep had already
+  run. The bindings come from `pip install vina` inside the env.
+- **`module` may not exist inside the job.** `--export=NONE` stops Lmod's shell
+  function from being inherited and a non-login bash does not source
+  `/etc/profile.d`, so the script sources the Lmod init itself before calling
+  `module purge`. Any `module load` must come after that purge, since modules
+  loaded on the login node do not survive into the job.
+
+`family("conda_env")` in the modulefile prevents it loading alongside another
+conda-env module, which would fight over `PATH` and `CONDA_PREFIX`. The guard is
+only mutual if the other modules declare the same family.
+
 ## Environment
 
 `environment.yml` builds the `dockpipe` conda env: Python 3.11, RDKit 2024.03.5,
