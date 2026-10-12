@@ -3,6 +3,7 @@ channels: [conda-forge]
 dependencies:
   - python=3.11
   - numpy
+  - pandas # merge_results.py; without it the last stage dies after docking
   - pyyaml
   - rdkit=2024.03.5
   - openmm
