@@ -4,7 +4,10 @@ dependencies:
   - python=3.11
   - numpy
   - pandas # merge_results.py; without it the last stage dies after docking
-  - gemmi # meeko imports it for PDB/mmCIF reading; pip does not always pull it
+  # Transitive deps of the pip packages below that pip does not reliably pull
+  # in: gemmi for meeko's PDB/mmCIF reading, joblib for molscrub.
+  - gemmi
+  - joblib
   - pyyaml
   - rdkit=2024.03.5
   - openmm
