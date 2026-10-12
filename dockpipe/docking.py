@@ -4,6 +4,7 @@ import csv
 import json
 import logging
 import os
+import time
 from dataclasses import dataclass
 from multiprocessing import Pool
 from pathlib import Path
@@ -60,7 +61,9 @@ def dock_one(task: DockTask) -> dict:
         "best_score": None,
         "pose_file": None,
         "n_poses": 0,
+        "seconds": None,
     }
+    t0 = time.perf_counter()
     try:
         v = _get_vina(task)
         v.set_ligand_from_file(str(lig))
@@ -92,6 +95,10 @@ def dock_one(task: DockTask) -> dict:
         log.warning(
             "Docking failed for %s on %s: %s", lig.stem, task.receptor_name, exc
         )
+    finally:
+        # Wall time per docking: the only honest basis for a --time estimate,
+        # since Vina's cost is driven by the ligand's torsion count.
+        rec["seconds"] = round(time.perf_counter() - t0, 2)
     return rec
 
 
@@ -286,6 +293,7 @@ def write_scores_csv(results: list[dict], path: str | Path) -> Path:
         "scoring",
         "best_score",
         "n_poses",
+        "seconds",
         "exhaustiveness",
         "seed",
         "status",
