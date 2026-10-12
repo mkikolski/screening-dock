@@ -22,10 +22,13 @@ whatis("Description: AutoDock Vina panel screening with Meeko ligand prep")
 family("conda_env")
 conflict("python_md")
 
--- If /opt/modules is not writable for you, create the env in your own storage
--- and point conda_root/env_root there; nothing else in this file changes.
+-- conda_root is only the miniforge install; the env itself need not live under
+-- it. /opt/modules is usually admin-owned, so if `conda env create` there is
+-- refused, build the env in your own storage and swap env_root for the second
+-- line below. Nothing else in this file changes.
 local conda_root = "/opt/modules/miniforge3"
 local env_root = pathJoin(conda_root, "envs")
+-- local env_root = "/storage/users/kikolski/envs"
 local env_name = "dockpipe"
 local env_path = pathJoin(env_root, env_name)
 local project_path = "/storage/users/kikolski/screening-dock"

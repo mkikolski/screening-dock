@@ -166,6 +166,37 @@ a few tenths of a kcal/mol, exhaustiveness is too low for that panel.
 otherwise oversubscribe the node, which is also why the sbatch scripts export
 `OMP_NUM_THREADS=1`.
 
+## Creating the environment
+
+The miniforge install at `/opt/modules/miniforge3` is not on `PATH` and has no
+module of its own, so `conda` has to be bootstrapped by sourcing its init
+script. That is all `run_all.slurm` needs at run time, and it is how you create
+the env once:
+
+```bash
+source /opt/modules/miniforge3/etc/profile.d/conda.sh   # defines `conda`
+export CONDA_PKGS_DIRS=/storage/users/kikolski/conda_pkgs   # cache off /opt and off $HOME
+
+conda env create -f environment.yml -p /storage/users/kikolski/envs/dockpipe
+conda activate /storage/users/kikolski/envs/dockpipe
+```
+
+`-p` puts the env in your own storage. Use it unless
+`/opt/modules/miniforge3/envs/` is writable by you — `/opt` is normally
+admin-owned, and so is the default package cache next to it, which is why
+`CONDA_PKGS_DIRS` is set. `$HOME` is a poor default for either: conda envs run
+to several GB and home quotas are usually small.
+
+Then point the pipeline at it, since `DOCKPIPE_ENV` accepts a prefix path:
+
+```bash
+DOCKPIPE_ENV=/storage/users/kikolski/envs/dockpipe sbatch run_all.slurm
+```
+
+If the env does land in your own storage, update `env_root` in
+`modulefiles/dockpipe/phase1.lua` to match (there is a commented-out line for
+it) before using the module path.
+
 ## Environment via Lmod
 
 `modulefiles/dockpipe/phase1.lua` wraps the conda env as a module, following the
