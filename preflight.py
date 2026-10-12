@@ -12,6 +12,7 @@ Needs only pyyaml and numpy, so it runs on a login node.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -44,12 +45,20 @@ def main() -> int:
         print(f"ligands: {smi} -- NOT FOUND")
         problems.append(f"ligands_smi missing: {smi}")
 
+    # output_root is created on first use (parents=True everywhere), so its
+    # absence is normal. What matters is that some existing ancestor is
+    # writable -- otherwise the run dies on the first mkdir.
     out_root = Path(cfg.output_root)
-    if out_root.is_dir():
-        print(f"output : {out_root}")
+    anchor = next((p for p in [out_root, *out_root.parents] if p.exists()), None)
+    if anchor is None:
+        print(f"output : {out_root} -- no existing ancestor")
+        problems.append(f"output_root unreachable: {out_root}")
+    elif not os.access(anchor, os.W_OK):
+        print(f"output : {out_root} -- {anchor} NOT WRITABLE")
+        problems.append(f"output_root not writable at {anchor}")
     else:
-        print(f"output : {out_root} -- NOT FOUND")
-        problems.append(f"output_root missing: {out_root}")
+        state = "exists" if out_root.is_dir() else f"will be created under {anchor}"
+        print(f"output : {out_root} ({state})")
     print()
 
     for r in cfg.receptors:

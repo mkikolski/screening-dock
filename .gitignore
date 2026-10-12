@@ -2,5 +2,7 @@ __pycache__/
 *.pyc
 .env
 logs/
+# output_root now lives inside the checkout; poses and score CSVs are outputs
+results/
 .idea/
 .vscode/

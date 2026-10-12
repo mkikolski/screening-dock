@@ -3,7 +3,10 @@ run_name: panel500_v1
 # hash in every manifest. Must stay in sync with $PROJECT in run_all.slurm;
 # preflight.py fails if it is not there.
 ligands_smi: /storage/users/kikolski/screening-dock/exp_c5_selected_500.smi
-output_root: /storage/users/kikolski/Gen_network/data/docking
+# Created automatically on the first run (every mkdir uses parents=True), so it
+# needs no setup -- only a writable parent. Gitignored: poses and CSVs are large
+# and are outputs, not inputs.
+output_root: /storage/users/kikolski/screening-dock/results
 
 ligand_ph: 7.4
 skip_tautomers: true
