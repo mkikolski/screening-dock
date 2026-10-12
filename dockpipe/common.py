@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field, asdict
@@ -116,9 +117,22 @@ def _safe(cmd: list[str]) -> str | None:
         return None
 
 
+PACKAGES = (
+    "rdkit", "meeko", "molscrub", "vina", "numpy", "scipy", "pandas",
+    # these three change the numbers but are easy to forget:
+    # openmm/pdbfixer do protonation, spyrmsd decides whether the redocking
+    # RMSD is symmetry-corrected (it falls back silently if absent).
+    "openmm", "pdbfixer", "spyrmsd",
+)
+
+# Receptor PDBQT conversion shells out to whichever of these is on PATH, so the
+# result depends on a binary that no package version captures.
+EXTERNAL_TOOLS = ("mk_prepare_receptor.py", "prepare_receptor", "vina", "obabel")
+
+
 def package_versions() -> dict[str, str]:
     out: dict[str, str] = {"python": sys.version.split()[0]}
-    for mod in ("rdkit", "meeko", "molscrub", "vina", "numpy", "scipy", "pandas"):
+    for mod in PACKAGES:
         try:
             m = __import__(mod)
             out[mod] = getattr(m, "__version__", "unknown")
@@ -127,11 +141,21 @@ def package_versions() -> dict[str, str]:
     return out
 
 
+def external_tools() -> dict[str, str | None]:
+    """Resolved paths of the CLI tools the pipeline shells out to."""
+    return {t: shutil.which(t) for t in EXTERNAL_TOOLS}
+
+
 def environment_provenance() -> dict[str, Any]:
     return {
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "hostname": os.uname().nodename,
         "packages": package_versions(),
+        "tools": external_tools(),
+        # Module systems export these, so the loaded modules land in the
+        # manifest without the script having to report them.
+        "modules": os.environ.get("LOADEDMODULES") or None,
+        "conda_prefix": os.environ.get("CONDA_PREFIX"),
         "git_commit": _safe(["git", "rev-parse", "HEAD"]),
         "git_dirty": bool(_safe(["git", "status", "--porcelain"])),
         "slurm": {

@@ -35,20 +35,49 @@ mkdir -p logs
 
 WORKERS="${SLURM_CPUS_PER_TASK:-12}"
 
-# Code provenance: the commit every stage below runs from. The same values are
-# written into each stage manifest by dockpipe.common.environment_provenance().
+# Code provenance: the commit every stage below runs from. The same values, plus
+# package versions, resolved tool paths and $LOADEDMODULES, are written into
+# every stage manifest by dockpipe.common.environment_provenance().
 COMMIT="$(git -C "$PROJECT" rev-parse HEAD 2>/dev/null || echo unknown)"
 DIRTY="$(git -C "$PROJECT" status --porcelain 2>/dev/null | head -c1)"
-echo "=== dockpipe job ${SLURM_JOB_ID:-local} ==="
-echo "commit : $COMMIT${DIRTY:+ (DIRTY working tree)}"
-python -c "import sys, rdkit, meeko, vina; \
-print('python :', sys.version.split()[0]); \
-print('rdkit  :', rdkit.__version__); \
-print('meeko  :', meeko.__version__); \
-print('vina   :', vina.__version__)"
-echo "workers: $WORKERS"
+
+echo "=== dockpipe job ${SLURM_JOB_ID:-local} on $(hostname) ==="
+echo "commit : $COMMIT${DIRTY:+ (DIRTY working tree -- result not reproducible)}"
 echo "config : $CONFIG"
+echo "workers: $WORKERS"
+echo "modules: ${LOADEDMODULES:-<none>}"
+
+# Fail before the queue time is spent, not at stage 1. The Python `vina`
+# package is what docking.py imports -- a `module load vina` CLI does not
+# satisfy it. Receptor prep additionally shells out to a separate binary.
+python - <<'PY'
+import importlib, shutil, sys
+bad = []
+for mod in ("rdkit", "meeko", "molscrub", "vina", "pandas", "pdbfixer", "openmm"):
+    try:
+        m = importlib.import_module(mod)
+        print(f"{mod:<9}: {getattr(m, '__version__', 'unknown')}")
+    except Exception as e:
+        print(f"{mod:<9}: MISSING ({e.__class__.__name__})")
+        bad.append(mod)
+try:
+    import spyrmsd
+    print(f"{'spyrmsd':<9}: {spyrmsd.__version__}")
+except Exception:
+    print(f"{'spyrmsd':<9}: absent -- redocking RMSD will NOT be "
+          "symmetry-corrected (inflated for symmetric ligands)")
+prep = [t for t in ("mk_prepare_receptor.py", "prepare_receptor")
+        if shutil.which(t)]
+print(f"{'rec-prep':<9}: {prep[0] + ' -> ' + shutil.which(prep[0]) if prep else 'MISSING'}")
+if not prep:
+    bad.append("mk_prepare_receptor.py/prepare_receptor")
+if bad:
+    sys.exit("missing dependencies: " + ", ".join(bad))
+PY
 echo "=========================================="
+
+# A resolvable record of the whole env, next to the results.
+micromamba list --export > "logs/env_${SLURM_JOB_ID:-local}.txt" 2>/dev/null || true
 
 # One job, five job steps. Each srun is a separate step so `sacct -j <id>` shows
 # per-stage timing and exit codes, and set -e aborts the rest on failure.
