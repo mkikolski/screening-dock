@@ -1,0 +1,85 @@
+run_name: panel500_v1
+ligands_smi: /storage/users/kikolski/Gen_network/data/panels/exp_c2_500.smi
+output_root: /storage/users/kikolski/Gen_network/data/docking
+
+ligand_ph: 7.4
+skip_tautomers: true
+n_scrub_attempts: 5
+n_workers: 12
+
+vina:
+  scoring: vina
+  exhaustiveness: 32
+  n_poses: 9
+  seed: 2137
+  cpu: 1
+  min_rmsd: 1.0
+
+receptors:
+  # ---------------------------------------------------------------- GyrB ---
+  - name: gyrb_saureus_3u2d
+    pdb_id: 3U2D
+    keep_chains: [A]
+    keep_hetatms: [] # check for structural waters near Asp81/Asp73
+    redock_ligand_resname: null # <-- SET THIS after inspecting the entry
+    ph: 7.4
+    notes: >
+      S. aureus GyrB ATP site with a pyrrolamide. Key contact is the
+      Asp/conserved-water hinge. If a bridging water is present, add its
+      resname (HOH) to keep_hetatms and verify it sits in the pocket.
+    box:
+      reference_ligand_resname: null # same resname as redock ligand
+      size: [22.0, 22.0, 22.0]
+
+  - name: gyrb_ecoli_4zvi
+    pdb_id: 4ZVI
+    keep_chains: [A]
+    keep_hetatms: []
+    redock_ligand_resname: null
+    ph: 7.4
+    notes: E. coli GyrB with an N-phenylpyrrolamide.
+    box:
+      reference_ligand_resname: null
+      size: [22.0, 22.0, 22.0]
+
+  # ---------------------------------------------------------------- DHFR ---
+  - name: dhfr_ecoli_7mym
+    pdb_id: 7MYM
+    keep_chains: [A]
+    keep_hetatms: [NDP] # NADPH -- REQUIRED, TMP binding is cooperative
+    redock_ligand_resname: TOP # trimethoprim; verify (TOP vs TMP)
+    ph: 7.4
+    notes: >
+      E. coli DHFR ternary complex with trimethoprim and NADPH. Keep NADPH:
+      removing it changes the M20 loop pocket and destroys the docking site.
+    box:
+      reference_ligand_resname: TOP
+      size: [20.0, 20.0, 20.0]
+
+  - name: dhfr_human_2w3a # SELECTIVITY COUNTER-SCREEN
+    pdb_id: 2W3A
+    keep_chains: [A]
+    keep_hetatms: [NDP]
+    redock_ligand_resname: TOP
+    ph: 7.4
+    notes: >
+      Human DHFR with TMP+NADPH. Dock the same panel here and report the
+      bacterial-minus-human score differential as a selectivity axis.
+    box:
+      reference_ligand_resname: TOP
+      size: [20.0, 20.0, 20.0]
+
+  # ---------------------------------------------------------------- FabI ---
+  - name: fabi_saureus_3gr6
+    pdb_id: 3GR6
+    keep_chains: [A]
+    keep_hetatms: [NDP] # NADP -- part of the binding surface
+    redock_ligand_resname: TCL # triclosan; verify
+    ph: 7.4
+    notes: >
+      S. aureus FabI with NADP and triclosan. Cofactor is retained because
+      triclosan stacks on the nicotinamide ring. Substrate-binding loop is
+      ordered only in the ternary complex, so use this holo form.
+    box:
+      reference_ligand_resname: TCL
+      size: [22.0, 22.0, 22.0]

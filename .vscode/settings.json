@@ -1,0 +1,5 @@
+{
+    "python.defaultInterpreterPath": "/home/mkikolski/micromamba/envs/docking/bin/python",
+    "python.terminal.activateEnvironment": false,
+    "python-envs.defaultEnvManager": "ms-python.python:system"
+}

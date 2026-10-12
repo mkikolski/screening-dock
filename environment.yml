@@ -1,0 +1,15 @@
+name: dockpipe
+channels: [conda-forge]
+dependencies:
+  - python=3.11
+  - numpy
+  - pyyaml
+  - rdkit=2024.03.5
+  - openmm
+  - pdbfixer
+  - pip
+  - pip:
+    - meeko>=0.6.0
+    - molscrub
+    - vina>=1.2.5
+    - spyrmsd
