@@ -21,12 +21,10 @@ so they must sit inside a `dockpipe/` directory with the entrypoints beside it:
     receptors.py           # PDB fetch, split, protonate, PDBQT, box derivation
     ligands.py             # SMILES → molscrub states → Meeko PDBQT
     docking.py             # Vina driver, redocking control, scores CSV
-  01_prep.sbatch 02_dock.sbatch 03_merge.sbatch
+  run_all.slurm            # whole pipeline, one job, one srun step per stage
 ```
 
-The files are currently flat in the repo root, so imports fail as-is — move the
-four library modules into `dockpipe/` (with an `__init__.py`) before running.
-The sbatch scripts set `PYTHONPATH="$PROJECT"`; that resolves `dockpipe.*` only
+`run_all.slurm` sets `PYTHONPATH="$PROJECT"`; that resolves `dockpipe.*` only
 when `$PROJECT` is the directory *containing* `dockpipe/`.
 
 ## Stages
@@ -67,17 +65,28 @@ python run_pipeline.py dock           --config configs/panel500.yaml --workers 1
 python merge_results.py               --config configs/panel500.yaml
 ```
 
-On the cluster, submit in sequence — `01_prep.sbatch` (prep + redock gate),
-`02_dock.sbatch` (job array, 8 shards by default), `03_merge.sbatch`. The shard
-index comes from `SLURM_ARRAY_TASK_ID` and the count from
-`SLURM_ARRAY_TASK_COUNT`, so changing `--array=0-7` is enough to re-shard.
+On the cluster it is a single submission:
+
+```bash
+sbatch run_all.slurm
+squeue -u "$USER"            # the one job
+sacct -j <jobid> --format=JobID,JobName,Elapsed,State,ExitCode
+```
+
+All five stages run as `srun` steps inside that one job, in order. `set -e`
+means a failing stage — including the redocking gate — aborts the rest instead
+of docking against a broken receptor; `sacct` shows which step failed, since
+each step carries its stage name. The node's CPUs are used by the worker `Pool`
+within a stage, so there is no job array and no sharding to coordinate.
+
 Override paths with the `DOCKPIPE_PROJECT`, `DOCKPIPE_CONFIG`, `DOCKPIPE_ENV`
-and `MAMBA_ROOT_PREFIX` environment variables; the scripts still have `XXXX`
+and `MAMBA_ROOT_PREFIX` environment variables; the script still has `XXXX`
 placeholders for the username and `--mail-user`.
 
 Useful CLI flags: `--receptor <name>` restricts a run to one target,
 `--ligands` overrides `ligands_smi`, `--workers` overrides `n_workers`,
-`--shard-index` / `--shard-count` partition the ligand-state list.
+`--shard-index` / `--shard-count` partition the ligand-state list (kept for
+splitting a rerun by hand; `run_all.slurm` does not use them).
 
 Outputs land under `<output_root>/<run_name>/`: `receptors/`, `ligands/`,
 `docking/` (per-receptor poses, `scores*.csv`, `redock_control.json`,
@@ -164,18 +173,40 @@ OpenMM + PDBFixer from conda-forge, then meeko ≥ 0.6.0, molscrub, vina ≥ 1.2
 and spyrmsd from pip. spyrmsd is optional at runtime but without it redocking
 RMSD is not symmetry-corrected, which inflates it for symmetric ligands.
 
-## Unused files
+## Provenance: which code produced a result
 
-- `analyze_500.py` — the prototype `ligands.py` replaced. Its docstring lists
-  the bugs that were fixed (`os.mkdirs`, unbound `scrubbed`, rigid 3-field
-  split, `Scrub` pickled per task). Not imported anywhere.
-- `draft.slurm` — abandoned sketch using the Meeko CLI (`scrub.py`,
-  `mk_prepare_ligand.py`) instead of the Python API. Contains a typo
-  (`$PROECT`) and never reaches a docking step.
+The repo is under git, and every stage records the commit it ran from. Two
+places to look:
+
+- The job log header (`logs/dockpipe_<jobid>.log`) prints `commit : <sha>` once,
+  plus `(DIRTY working tree)` if the submitted tree had uncommitted changes.
+- Each stage manifest under `<output_root>/<run_name>/manifests/*.json` carries
+  `provenance.git_commit` and `provenance.git_dirty` alongside package versions,
+  hostname, SLURM ids and SHA-256 checksums of that stage's outputs.
+
+The hash comes from the *source tree*, not the working directory —
+`dockpipe.common._safe` runs git with `cwd=CODE_ROOT` (the parent of
+`dockpipe/`), so it stays correct no matter where the job is launched from.
+
+A `git_dirty: true` manifest means the result is not reproducible from any
+commit. Commit before submitting a run whose numbers you intend to keep:
+
+```bash
+git commit -am "panel500: <what changed>" && sbatch run_all.slurm
+```
+
+To go from a result back to its code: `git checkout $(jq -r
+.provenance.git_commit manifests/dock.json)`.
+
+## Other files
+
 - `exp_c5_selected_500.smi` — a local 500-ligand panel; the config points at
   `exp_c2_500.smi` on cluster storage, so this copy is not what runs. Pass it
   with `--ligands` if that is the intent.
 - `.env` — a dump of an interactive shell environment, not pipeline config.
-  Nothing reads it.
+  Nothing reads it; it is gitignored.
 
-Both scripts are safe to delete; they are kept only as history.
+Removed in the restructure: `analyze_500.py` (prototype that `ligands.py`
+replaced), `draft.slurm` (Meeko-CLI sketch that never reached docking), and
+`01_prep.sbatch` / `02_dock.sbatch` / `03_merge.sbatch` (superseded by
+`run_all.slurm`). They are in git history if ever needed.

@@ -102,10 +102,15 @@ class PipelineConfig:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
+CODE_ROOT = Path(__file__).resolve().parent.parent
+
+
 def _safe(cmd: list[str]) -> str | None:
+    """Run cmd in the source tree, not the cwd, so git provenance is the code's."""
     try:
         return subprocess.run(
-            cmd, capture_output=True, text=True, timeout=10, check=True
+            cmd, capture_output=True, text=True, timeout=10, check=True,
+            cwd=CODE_ROOT,
         ).stdout.strip()
     except Exception:
         return None
