@@ -9,14 +9,14 @@
 #SBATCH --time=16:00:00
 #SBATCH --partition=phd
 #SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=XXXX
+#SBATCH --mail-user=mkikolaj.kikolski@pwr.edu.pl
 
 set -euo pipefail
 
-PROJECT="${DOCKPIPE_PROJECT:-/storage/users/XXXX/Gen_network/dockpipe}"
+PROJECT="${DOCKPIPE_PROJECT:-/storage/users/kikolski/mateusz-dock/}"
 CONFIG="${DOCKPIPE_CONFIG:-$PROJECT/configs/panel500.yaml}"
 ENV_NAME="${DOCKPIPE_ENV:-dockpipe}"
-MAMBA_ROOT="${MAMBA_ROOT_PREFIX:-/storage/users/XXXX/micromamba}"
+MAMBA_ROOT="${MAMBA_ROOT_PREFIX:-/storage/users/kikolski/micromamba}"
 
 module purge
 export MAMBA_ROOT_PREFIX="$MAMBA_ROOT"
