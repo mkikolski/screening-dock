@@ -79,9 +79,9 @@ of docking against a broken receptor; `sacct` shows which step failed, since
 each step carries its stage name. The node's CPUs are used by the worker `Pool`
 within a stage, so there is no job array and no sharding to coordinate.
 
-Override paths with the `DOCKPIPE_PROJECT`, `DOCKPIPE_CONFIG`, `DOCKPIPE_ENV`
-and `MAMBA_ROOT_PREFIX` environment variables; the script still has `XXXX`
-placeholders for the username and `--mail-user`.
+Override paths with the `DOCKPIPE_PROJECT`, `DOCKPIPE_CONFIG`, `DOCKPIPE_ENV`,
+`DOCKPIPE_CONDA_ROOT`, `DOCKPIPE_MODULE` and `DOCKPIPE_MODULEPATH` environment
+variables.
 
 Useful CLI flags: `--receptor <name>` restricts a run to one target,
 `--ligands` overrides `ligands_smi`, `--workers` overrides `n_workers`,
@@ -170,7 +170,7 @@ otherwise oversubscribe the node, which is also why the sbatch scripts export
 
 `modulefiles/dockpipe/phase1.lua` wraps the conda env as a module, following the
 group's convention (PATH prepend plus `CONDA_*`, no `conda activate`). To use it
-instead of micromamba, set `DOCKPIPE_MODULE`:
+instead of activating the env directly, set `DOCKPIPE_MODULE`:
 
 ```bash
 DOCKPIPE_MODULE=dockpipe/phase1 sbatch run_all.slurm
@@ -179,10 +179,13 @@ module use /storage/users/kikolski/screening-dock/modulefiles
 module load dockpipe/phase1
 ```
 
-With `DOCKPIPE_MODULE` unset the script falls back to micromamba, so both work
-and nothing breaks before the module is installed. `DOCKPIPE_MODULEPATH`
-overrides where `module use` looks, for when an admin installs the file on the
-system `MODULEPATH` instead.
+With `DOCKPIPE_MODULE` unset the script instead sources
+`$DOCKPIPE_CONDA_ROOT/etc/profile.d/conda.sh` (default
+`/opt/modules/miniforge3`) and runs `conda activate "$DOCKPIPE_ENV"`, so both
+work and nothing breaks before the module is installed. `DOCKPIPE_ENV` may be a
+name under `$CONDA_ROOT/envs` or an absolute prefix path if the env lives in
+your own storage. `DOCKPIPE_MODULEPATH` overrides where `module use` looks, for
+when an admin installs the file on the system `MODULEPATH` instead.
 
 The modulefile sets `DOCKPIPE_PROJECT`, so a `module load` alone points the
 pipeline at the right checkout. It deliberately does **not** set thread limits:
@@ -248,7 +251,7 @@ To go from a result back to its code: `git checkout $(jq -r
 `env > .env` dump describes whichever machine made it — sourcing a laptop's
 copy on a compute node would point `PATH` and `CONDA_PREFIX` at paths that do
 not exist there. Configuration lives in `configs/*.yaml` plus the `DOCKPIPE_*`
-and `MAMBA_ROOT_PREFIX` overrides.
+overrides.
 
 Removed: `analyze_500.py` (prototype that `ligands.py` replaced),
 `draft.slurm` (Meeko-CLI sketch that never reached docking),

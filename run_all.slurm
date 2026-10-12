@@ -18,7 +18,9 @@ set -euo pipefail
 PROJECT="${DOCKPIPE_PROJECT:-/storage/users/kikolski/screening-dock}"
 CONFIG="${DOCKPIPE_CONFIG:-$PROJECT/configs/panel500.yaml}"
 ENV_NAME="${DOCKPIPE_ENV:-dockpipe}"
-MAMBA_ROOT="${MAMBA_ROOT_PREFIX:-/storage/users/kikolski/micromamba}"
+# ENV_NAME may be a name in $CONDA_ROOT/envs, or an absolute prefix path if the
+# env lives in your own storage.
+CONDA_ROOT="${DOCKPIPE_CONDA_ROOT:-/opt/modules/miniforge3}"
 
 # --export=NONE means Lmod's shell function is not inherited either, and a
 # non-login bash does not source /etc/profile.d. Without this, `module` is
@@ -31,19 +33,28 @@ if ! command -v module >/dev/null 2>&1; then
   done
 fi
 
-module purge
+# Purge only if there is a module system; without this guard `set -e` would
+# abort the job on a host that has none, which the conda path does not need.
+if command -v module >/dev/null 2>&1; then
+  module purge
+elif [[ -n "${DOCKPIPE_MODULE:-}" ]]; then
+  echo "DOCKPIPE_MODULE=$DOCKPIPE_MODULE but no module command found" >&2
+  exit 1
+fi
 
 # Two ways to get the environment. Set DOCKPIPE_MODULE to use the Lmod
-# modulefile (modulefiles/dockpipe/phase1.lua); otherwise fall back to
-# micromamba. Loading the module also supplies DOCKPIPE_PROJECT, but $PROJECT
-# was already resolved above, so an explicit DOCKPIPE_PROJECT still wins.
+# modulefile (modulefiles/dockpipe/phase1.lua); otherwise activate the conda env
+# directly from the miniforge install. Loading the module also supplies
+# DOCKPIPE_PROJECT, but $PROJECT was resolved above, so an explicit
+# DOCKPIPE_PROJECT still wins.
 if [[ -n "${DOCKPIPE_MODULE:-}" ]]; then
   module use "${DOCKPIPE_MODULEPATH:-$PROJECT/modulefiles}"
   module load "$DOCKPIPE_MODULE"
 else
-  export MAMBA_ROOT_PREFIX="$MAMBA_ROOT"
-  eval "$("$MAMBA_ROOT/bin/micromamba" shell hook --shell bash)"
-  micromamba activate "$ENV_NAME"
+  # conda.sh defines the shell function; `conda activate` does not work in a
+  # non-interactive shell without it.
+  source "$CONDA_ROOT/etc/profile.d/conda.sh"
+  conda activate "$ENV_NAME"
 fi
 
 export PYTHONNOUSERSITE=1
@@ -100,8 +111,7 @@ echo "=========================================="
 # A reinstallable record of the whole env, next to the logs. Which of these
 # works depends on how the env was provided, so try each.
 {
-  micromamba list --export 2>/dev/null \
-    || conda list --export 2>/dev/null \
+  conda list --export 2>/dev/null \
     || python -m pip freeze 2>/dev/null \
     || true
 } > "logs/env_${SLURM_JOB_ID:-local}.txt"
