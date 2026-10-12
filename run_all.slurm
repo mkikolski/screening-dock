@@ -4,10 +4,14 @@
 #SBATCH --output=logs/dockpipe_%j.log
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=12
+# This cluster: partition `standard` (the only one), 2 nodes x 32 CPUs x ~31 GB,
+# MaxTime=UNLIMITED. 32 cpus takes a whole node; drop to 16 to share one.
+#SBATCH --cpus-per-task=32
 #SBATCH --mem=24G
-#SBATCH --time=16:00:00
-#SBATCH --partition=phd
+# No cluster time limit, so this is only a safety net. Raise it rather than risk
+# a timeout: the dock stage has no checkpointing and restarts from zero.
+#SBATCH --time=48:00:00
+#SBATCH --partition=standard
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=mikolaj.kikolski@pwr.edu.pl
 
