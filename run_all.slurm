@@ -13,7 +13,9 @@
 
 set -euo pipefail
 
-PROJECT="${DOCKPIPE_PROJECT:-/storage/users/kikolski/mateusz-dock/}"
+# Must be the directory CONTAINING dockpipe/, not dockpipe/ itself: the stages
+# below run run_pipeline.py, which sits at the repo root.
+PROJECT="${DOCKPIPE_PROJECT:-/storage/users/kikolski/mateusz-dock}"
 CONFIG="${DOCKPIPE_CONFIG:-$PROJECT/configs/panel500.yaml}"
 ENV_NAME="${DOCKPIPE_ENV:-dockpipe}"
 MAMBA_ROOT="${MAMBA_ROOT_PREFIX:-/storage/users/kikolski/micromamba}"

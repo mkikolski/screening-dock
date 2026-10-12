@@ -203,10 +203,14 @@ To go from a result back to its code: `git checkout $(jq -r
 - `exp_c5_selected_500.smi` — a local 500-ligand panel; the config points at
   `exp_c2_500.smi` on cluster storage, so this copy is not what runs. Pass it
   with `--ligands` if that is the intent.
-- `.env` — a dump of an interactive shell environment, not pipeline config.
-  Nothing reads it; it is gitignored.
+`.env` is gitignored on purpose: nothing in the pipeline loads one, and a
+`env > .env` dump describes whichever machine made it — sourcing a laptop's
+copy on a compute node would point `PATH` and `CONDA_PREFIX` at paths that do
+not exist there. Configuration lives in `configs/*.yaml` plus the `DOCKPIPE_*`
+and `MAMBA_ROOT_PREFIX` overrides.
 
-Removed in the restructure: `analyze_500.py` (prototype that `ligands.py`
-replaced), `draft.slurm` (Meeko-CLI sketch that never reached docking), and
+Removed: `analyze_500.py` (prototype that `ligands.py` replaced),
+`draft.slurm` (Meeko-CLI sketch that never reached docking),
 `01_prep.sbatch` / `02_dock.sbatch` / `03_merge.sbatch` (superseded by
-`run_all.slurm`). They are in git history if ever needed.
+`run_all.slurm`), and a stray `.env` shell dump. All but the `.env`, which was
+never tracked, are in git history if ever needed.
