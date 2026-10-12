@@ -254,6 +254,28 @@ conda env create -f environment.yml          # -> envs/dockpipe, per `name:`
 conda activate dockpipe
 ```
 
+In practice conda fell back to `~/.conda/envs/dockpipe` rather than
+`miniforge3/envs`, which means the group write bit did not apply to this
+account. That works, but verify two things before a long job — a conda env is
+several GB, and `$HOME` is not guaranteed to be mounted on the compute nodes:
+
+```bash
+du -sh ~/.conda/envs/dockpipe        # typically 3-6 GB
+quota -s 2>/dev/null || df -h ~      # is there room
+srun -n1 -t 00:01:00 ls ~/.conda/envs/dockpipe/bin/python   # visible on a node?
+```
+
+If that `srun` fails, the env is unusable from the job and has to be rebuilt on
+shared storage:
+
+```bash
+conda env create -f environment.yml -p /storage/users/kikolski/envs/dockpipe
+```
+
+then set `DOCKPIPE_ENV` to that path and update `env_root` in
+`modulefiles/dockpipe/phase1.lua` to match. `conda activate dockpipe` by name
+keeps working either way, because conda searches all of `envs_dirs`.
+
 `CONDA_PKGS_DIRS` is still worth setting: only `envs/` was opened up, and the
 package cache lives next to it at `miniforge3/pkgs`. Without a writable cache
 conda falls back to `~/.conda/pkgs`, and these packages run to several GB
