@@ -1,5 +1,8 @@
 run_name: panel500_v1
-ligands_smi: /storage/users/kikolski/Gen_network/data/panels/exp_c2_500.smi
+# Tracked in the repo, so it travels with the code and is covered by the commit
+# hash in every manifest. Must stay in sync with $PROJECT in run_all.slurm;
+# preflight.py fails if it is not there.
+ligands_smi: /storage/users/kikolski/screening-dock/exp_c5_selected_500.smi
 output_root: /storage/users/kikolski/Gen_network/data/docking
 
 ligand_ph: 7.4

@@ -200,9 +200,11 @@ To go from a result back to its code: `git checkout $(jq -r
 
 ## Other files
 
-- `exp_c5_selected_500.smi` — a local 500-ligand panel; the config points at
-  `exp_c2_500.smi` on cluster storage, so this copy is not what runs. Pass it
-  with `--ligands` if that is the intent.
+- `exp_c5_selected_500.smi` — the 500-ligand panel the config points at, two
+  fields per line (SMILES, name). Tracked in the repo deliberately: it travels
+  with the code, so the commit hash in a manifest identifies the panel that
+  produced the scores as well as the code that ran them. Override per run with
+  `--ligands`.
 `.env` is gitignored on purpose: nothing in the pipeline loads one, and a
 `env > .env` dump describes whichever machine made it — sourcing a laptop's
 copy on a compute node would point `PATH` and `CONDA_PREFIX` at paths that do
