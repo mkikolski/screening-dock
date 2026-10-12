@@ -9,7 +9,7 @@
 #SBATCH --time=16:00:00
 #SBATCH --partition=phd
 #SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=mkikolaj.kikolski@pwr.edu.pl
+#SBATCH --mail-user=mikolaj.kikolski@pwr.edu.pl
 
 set -euo pipefail
 
