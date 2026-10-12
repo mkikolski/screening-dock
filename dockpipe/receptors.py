@@ -134,8 +134,17 @@ def receptor_to_pdbqt(in_pdb: Path, out_pdbqt: Path) -> Path:
         proc = subprocess.run(cmd, capture_output=True, text=True)
         if proc.returncode == 0 and out_pdbqt.exists():
             return out_pdbqt
-        log.warning("%s failed (rc=%d): %s", cmd[0], proc.returncode,
-                    proc.stderr.strip()[:500])
+        # The real cause is usually past the first 500 chars (RDKit tracebacks,
+        # meeko template warnings), so keep the whole thing on disk.
+        errlog = out_pdbqt.with_suffix(".prep.log")
+        errlog.write_text(
+            f"$ {' '.join(cmd)}\nrc={proc.returncode}\n"
+            f"--- stdout ---\n{proc.stdout}\n--- stderr ---\n{proc.stderr}",
+            encoding="utf-8",
+        )
+        log.warning("%s failed (rc=%d); full output in %s\n%s",
+                    cmd[0], proc.returncode, errlog,
+                    proc.stderr.strip()[-800:])
 
     raise RuntimeError(
         "No receptor preparation tool succeeded. Install Meeko's "
