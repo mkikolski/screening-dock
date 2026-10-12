@@ -60,12 +60,23 @@ Locally, one stage at a time:
 ```bash
 python run_pipeline.py prep-receptors --config configs/panel500.yaml
 python run_pipeline.py redock         --config configs/panel500.yaml
-python run_pipeline.py prep-ligands   --config configs/panel500.yaml --workers 12
-python run_pipeline.py dock           --config configs/panel500.yaml --workers 12
+python run_pipeline.py prep-ligands   --config configs/panel500.yaml --workers 32
+python run_pipeline.py dock           --config configs/panel500.yaml --workers 32
 python merge_results.py               --config configs/panel500.yaml
 ```
 
-On the cluster it is a single submission:
+Validate the config first — seconds, and safe on a login node:
+
+```bash
+python preflight.py --config configs/panel500.yaml
+```
+
+It fetches each PDB, splits it, derives the box, and checks that `ligands_smi`
+exists and that `output_root` has a writable ancestor. Non-zero exit means do
+not submit yet. It does **not** check SLURM or the environment; the job script
+does that itself and aborts before stage 1 if anything is missing.
+
+Then a single submission:
 
 ```bash
 sbatch run_all.slurm
@@ -78,6 +89,56 @@ means a failing stage — including the redocking gate — aborts the rest inste
 of docking against a broken receptor; `sacct` shows which step failed, since
 each step carries its stage name. The node's CPUs are used by the worker `Pool`
 within a stage, so there is no job array and no sharding to coordinate.
+
+### Cluster resources
+
+This cluster has **one** partition, `standard` (also the default), with 2 nodes
+× 32 CPUs × ~31 GB and `MaxTime=UNLIMITED`. The header asks for a whole node
+(`--cpus-per-task=32`) for 48 h. `WORKERS` comes from `SLURM_CPUS_PER_TASK`, so
+changing that one directive rescales the worker pool.
+
+Re-check before assuming any of that still holds:
+
+```bash
+sinfo -s
+scontrol show partition | grep -E 'PartitionName|MaxTime|MaxMemPerNode|State'
+scontrol show config | grep -i selecttype   # linear => whole nodes regardless
+```
+
+`Requested partition configuration not available right now` means the ask can
+never be satisfied as configured — a nonexistent partition name, or a `--time`,
+`--mem` or `--cpus-per-task` above the partition's limits — not that the queue
+is busy. `sinfo -p <part> -R` shows drained nodes. Command-line flags override
+the `#SBATCH` directives, so alternatives can be tried without editing:
+
+```bash
+sbatch --partition=<other> --cpus-per-task=16 --time=04:00:00 run_all.slurm
+```
+
+Two cautions at 32 workers: each worker caches its own Vina maps, so if the job
+is OOM-killed lower `--cpus-per-task` rather than raise `--mem` (the node has
+only ~31 GB); and a 32-CPU request takes a whole node out of the two available,
+so `--cpus-per-task=16` is the neighbourly option when someone else is active.
+
+### How long it will take
+
+Do not guess — measure. `scores*.csv` carries a `seconds` column per docking:
+
+```bash
+python -c "import pandas as pd; print(pd.read_csv('results/panel500_v1/docking/scores.csv').seconds.describe())"
+```
+
+Estimated hours ≈ `p90_seconds × n_states × n_receptors / workers / 3600`. Use
+p90, not the median: Vina's cost tracks the ligand's torsion count and the tail
+dominates. The current panel is ~500 molecules of median 41 heavy atoms, so
+roughly 3750–5000 dockings at `exhaustiveness: 32`.
+
+If it will not fit, in order of preference: raise `--time` (no cluster limit);
+split by receptor into independent jobs (`--receptor`, and `merge_results.py`
+already globs and dedups the shards); re-shard with `--shard-index` /
+`--shard-count`; or halve `exhaustiveness` and re-check the redocking gate.
+**The dock stage has no checkpointing** — a timeout loses every docking, so
+prefer a long `--time` or smaller independent jobs over a tight limit.
 
 Override paths with the `DOCKPIPE_PROJECT`, `DOCKPIPE_CONFIG`, `DOCKPIPE_ENV`,
 `DOCKPIPE_CONDA_ROOT`, `DOCKPIPE_MODULE` and `DOCKPIPE_MODULEPATH` environment
@@ -163,7 +224,7 @@ The empirical check is the redocking gate plus a seed sweep: if re-running a
 handful of ligands with different `seed` values moves the top score by more than
 a few tenths of a kcal/mol, exhaustiveness is too low for that panel.
 `cpu: 1` is deliberate — Vina's internal threading and the worker `Pool` would
-otherwise oversubscribe the node, which is also why the sbatch scripts export
+otherwise oversubscribe the node, which is also why run_all.slurm exports
 `OMP_NUM_THREADS=1`.
 
 ## Creating the environment
