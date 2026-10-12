@@ -27,11 +27,8 @@ conflict("python_md")
 -- refused, build the env in your own storage and swap env_root for the second
 -- line below. Nothing else in this file changes.
 local conda_root = "/opt/modules/miniforge3"
--- Where the env actually is. conda fell back to ~/.conda/envs rather than
--- miniforge3/envs, so that is what this points at. If home is quota-limited or
--- not mounted on the compute nodes, rebuild the env under /storage with
--- `conda env create -f environment.yml -p <path>` and set env_root to it.
-local env_root = "/home/kikolski/.conda/envs"
+-- The env lives on shared storage, not under miniforge3/envs or in $HOME.
+local env_root = "/storage/users/kikolski/envs"
 local env_name = "dockpipe"
 local env_path = pathJoin(env_root, env_name)
 local project_path = "/storage/users/kikolski/screening-dock"

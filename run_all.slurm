@@ -21,7 +21,9 @@ set -euo pipefail
 # below run run_pipeline.py, which sits at the repo root.
 PROJECT="${DOCKPIPE_PROJECT:-/storage/users/kikolski/screening-dock}"
 CONFIG="${DOCKPIPE_CONFIG:-$PROJECT/configs/panel500.yaml}"
-ENV_NAME="${DOCKPIPE_ENV:-dockpipe}"
+# Full prefix path, not a name: the env is outside conda's envs_dirs, so
+# `conda activate dockpipe` would not resolve it.
+ENV_NAME="${DOCKPIPE_ENV:-/storage/users/kikolski/envs/dockpipe}"
 # ENV_NAME may be a name in $CONDA_ROOT/envs, or an absolute prefix path if the
 # env lives in your own storage.
 CONDA_ROOT="${DOCKPIPE_CONDA_ROOT:-/opt/modules/miniforge3}"
