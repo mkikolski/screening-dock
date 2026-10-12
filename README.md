@@ -173,29 +173,41 @@ module of its own, so `conda` has to be bootstrapped by sourcing its init
 script. That is all `run_all.slurm` needs at run time, and it is how you create
 the env once:
 
-```bash
-source /opt/modules/miniforge3/etc/profile.d/conda.sh   # defines `conda`
-export CONDA_PKGS_DIRS=/storage/users/kikolski/conda_pkgs   # cache off /opt and off $HOME
+`envs/` there is group-writable (`drwxrwxr-x`), so the env can be created in
+place under its own name, which is where the modulefile already looks. Confirm
+you are in the owning group first — the mode only grants write to that group,
+and `other` has `r-x`:
 
-conda env create -f environment.yml -p /storage/users/kikolski/envs/dockpipe
-conda activate /storage/users/kikolski/envs/dockpipe
+```bash
+stat -c '%A %U:%G' /opt/modules/miniforge3/envs   # note the group
+id -nG                                            # must contain it
 ```
 
-`-p` puts the env in your own storage. Use it unless
-`/opt/modules/miniforge3/envs/` is writable by you — `/opt` is normally
-admin-owned, and so is the default package cache next to it, which is why
-`CONDA_PKGS_DIRS` is set. `$HOME` is a poor default for either: conda envs run
-to several GB and home quotas are usually small.
-
-Then point the pipeline at it, since `DOCKPIPE_ENV` accepts a prefix path:
+If it does:
 
 ```bash
+source /opt/modules/miniforge3/etc/profile.d/conda.sh   # defines `conda`
+export CONDA_PKGS_DIRS=/storage/users/kikolski/conda_pkgs
+
+conda env create -f environment.yml          # -> envs/dockpipe, per `name:`
+conda activate dockpipe
+```
+
+`CONDA_PKGS_DIRS` is still worth setting: only `envs/` was opened up, and the
+package cache lives next to it at `miniforge3/pkgs`. Without a writable cache
+conda falls back to `~/.conda/pkgs`, and these packages run to several GB
+against a home quota that usually cannot take them.
+
+If you are *not* in that group, build the env in your own storage instead and
+pass the prefix — `DOCKPIPE_ENV` accepts either a name or a path:
+
+```bash
+conda env create -f environment.yml -p /storage/users/kikolski/envs/dockpipe
 DOCKPIPE_ENV=/storage/users/kikolski/envs/dockpipe sbatch run_all.slurm
 ```
 
-If the env does land in your own storage, update `env_root` in
-`modulefiles/dockpipe/phase1.lua` to match (there is a commented-out line for
-it) before using the module path.
+In that case also update `env_root` in `modulefiles/dockpipe/phase1.lua` (there
+is a commented-out line for it) before using the module path.
 
 ## Environment via Lmod
 
