@@ -123,6 +123,9 @@ PACKAGES = (
     # openmm/pdbfixer do protonation, spyrmsd decides whether the redocking
     # RMSD is symmetry-corrected (it falls back silently if absent).
     "openmm", "pdbfixer", "spyrmsd",
+    # meeko's own dependency; a missing gemmi surfaces as an import error from
+    # meeko, which is confusing, so record it explicitly.
+    "gemmi",
 )
 
 # Receptor PDBQT conversion shells out to whichever of these is on PATH, so the

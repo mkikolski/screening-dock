@@ -89,7 +89,8 @@ echo "modules: ${LOADEDMODULES:-<none>}"
 python - <<'PY'
 import importlib, shutil, sys
 bad = []
-for mod in ("rdkit", "meeko", "molscrub", "vina", "pandas", "pdbfixer", "openmm"):
+for mod in ("rdkit", "gemmi", "meeko", "molscrub", "vina", "pandas",
+            "pdbfixer", "openmm"):
     try:
         m = importlib.import_module(mod)
         print(f"{mod:<9}: {getattr(m, '__version__', 'unknown')}")
