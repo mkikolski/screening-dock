@@ -43,6 +43,10 @@ receptors:
     pdb_id: 4ZVI
     keep_chains: [A]
     keep_hetatms: [] # IOD is a phasing iodide, deliberately dropped
+    # Redock: top pose 9.89 A, native pose 1.86 A at rank 4. The site is
+    # reproduced; Vina's ranking is what fails. Not a missing water --
+    # only one 3.33 A HOH contact exists, and 3U2D passes at 0.52 A with
+    # its four 2.72 A waters excluded.
     redock_ligand_resname: 4S4
     ph: 7.4
     notes: >
@@ -90,6 +94,11 @@ receptors:
     pdb_id: 3GR6
     keep_chains: [A]
     keep_hetatms: [NAP] # NADP+ -- part of the binding surface, verified NAP
+    # Redock: top pose 5.90 A, native pose 1.70 A at rank 2. Triclosan
+    # stacks face-to-face on the NAD+ nicotinamide and Vina under-rewards
+    # pi-stacking. No water is involved (closest HOH is 7.07 A), so there
+    # is no configuration fix -- treat this receptor's absolute scores as
+    # weaker evidence than the three that pass.
     redock_ligand_resname: TCL # verified: TCL = triclosan, 17 atoms
     ph: 7.4
     notes: >

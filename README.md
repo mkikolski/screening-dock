@@ -341,6 +341,37 @@ OpenMM + PDBFixer from conda-forge, then meeko ≥ 0.6.0, molscrub, vina ≥ 1.2
 and spyrmsd from pip. spyrmsd is optional at runtime but without it redocking
 RMSD is not symmetry-corrected, which inflates it for symmetric ligands.
 
+## Redocking validation
+
+Run `redock` before any screen. It re-docks each co-crystal ligand into its own
+box and reports RMSD against the crystal pose. Bond orders come from the
+chemical component's ideal SDF, fetched from RCSB -- a PDB entry stores no
+connectivity for ligands, so without that template RDKit guesses bonds by
+proximity and the control measures a saturated analogue rather than the real
+ligand.
+
+Result for `configs/panel500.yaml` (exhaustiveness 32, 9 poses):
+
+| receptor | top pose | best pose | rank | verdict |
+|---|---|---|---|---|
+| gyrb_saureus_3u2d | 0.52 | 0.52 | 1 | PASS |
+| gyrb_ecoli_4zvi   | 9.89 | 1.86 | 4 | FAIL (ranking) |
+| dhfr_ecoli_7mym   | 0.89 | 0.85 | 2 | PASS |
+| dhfr_human_2w3a   | 0.41 | 0.41 | 1 | PASS |
+| fabi_saureus_3gr6 | 5.90 | 1.70 | 2 | FAIL (ranking) |
+
+All five reproduce the native pose within 2 A somewhere in the top 9, so the
+boxes, receptors and cofactors are correct. The two failures are Vina ranking
+a non-native pose first, not a setup error, and neither has a configuration
+fix (see the per-receptor notes in the config). Since a compound's reported
+score is the best of its 9 poses, this matters little for ranking compounds
+*within* a receptor; treat absolute cross-receptor comparisons involving
+gyrb_ecoli_4zvi and fabi_saureus_3gr6 as weaker evidence.
+
+Box sizes are deliberately larger than the crystal ligands need: the control
+has to use the same box as the screen, and the panel is median 41 heavy atoms
+against triclosan's 17.
+
 ## Provenance: which code produced a result
 
 The repo is under git, and every stage records the commit it ran from. Two
