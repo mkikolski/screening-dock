@@ -102,13 +102,43 @@ def dock_one(task: DockTask) -> dict:
     return rec
 
 
+def read_checkpoint(path: str | Path) -> dict[str, dict]:
+    """Completed dockings from a checkpoint file, keyed by ligand stem."""
+    done: dict[str, dict] = {}
+    path = Path(path)
+    if not path.exists():
+        return done
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+                done[rec["ligand"]] = rec
+            except (json.JSONDecodeError, KeyError):
+                # A killed job can leave a half-written final line. Everything
+                # before it is still good, so skip it rather than start over.
+                log.warning("Ignoring truncated checkpoint line in %s", path)
+    return done
+
+
 def dock_many(
     ligand_pdbqts: list[str],
     receptor_record: dict,
     out_dir: str | Path,
     vina: VinaSpec,
     n_workers: int = 8,
+    checkpoint: str | Path | None = None,
 ) -> list[dict]:
+    # A single docking costs ~30 min on this panel, so a full run lasts tens of
+    # hours and will be interrupted sooner or later. Each result is appended
+    # and flushed as it lands, and whatever is already recorded is not redone.
+    done = read_checkpoint(checkpoint) if checkpoint else {}
+    if done:
+        log.info("%s: resuming, %d dockings already recorded in %s",
+                 receptor_record["name"], len(done), checkpoint)
+
     tasks = [
         DockTask(
             ligand_pdbqt=lp,
@@ -120,7 +150,13 @@ def dock_many(
             vina=vina,
         )
         for lp in ligand_pdbqts
+        if Path(lp).stem not in done
     ]
+
+    results: list[dict] = list(done.values())
+    if not tasks:
+        log.info("%s: already complete, nothing to dock", receptor_record["name"])
+        return results
 
     n_workers = max(1, min(os.cpu_count() or 1, n_workers))
     log.info(
@@ -133,13 +169,30 @@ def dock_many(
         vina.scoring,
     )
 
-    results: list[dict] = []
-    # chunksize=1 so each worker reuses its cached Vina maps across many tasks
-    with Pool(processes=n_workers) as pool:
-        for rec in pool.imap_unordered(dock_one, tasks, chunksize=1):
-            results.append(rec)
-            if len(results) % 100 == 0:
-                log.info("  docked %d/%d", len(results), len(tasks))
+    fh = None
+    if checkpoint:
+        Path(checkpoint).parent.mkdir(parents=True, exist_ok=True)
+        fh = open(checkpoint, "a", encoding="utf-8")
+    try:
+        # chunksize=1 so each worker reuses its cached Vina maps across tasks
+        with Pool(processes=n_workers) as pool:
+            fresh: list[dict] = []
+            for rec in pool.imap_unordered(dock_one, tasks, chunksize=1):
+                results.append(rec)
+                fresh.append(rec)
+                if fh is not None:
+                    fh.write(json.dumps(rec) + "\n")
+                    fh.flush()
+                if len(fresh) % 25 == 0 or len(fresh) == len(tasks):
+                    per = sum(r.get("seconds") or 0.0 for r in fresh) / len(fresh)
+                    log.info("  docked %d/%d (%.1f min per docking, "
+                             "%.1f h left at %d workers)",
+                             len(fresh), len(tasks), per / 60,
+                             (len(tasks) - len(fresh)) * per / n_workers / 3600,
+                             n_workers)
+    finally:
+        if fh is not None:
+            fh.close()
     return results
 
 

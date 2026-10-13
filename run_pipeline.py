@@ -149,18 +149,22 @@ def cmd_dock(cfg: PipelineConfig, args) -> None:
             len(states),
         )
 
+    suffix = f"_shard{args.shard_index:03d}" if args.shard_count > 1 else ""
+
     all_results = []
     for r in receptors:
+        # Per receptor and per shard, so concurrent array tasks never share a
+        # checkpoint and a resumed run picks up exactly its own work.
         res = dock_mod.dock_many(
             states,
             r,
             p["docking"],
             cfg.vina,
             n_workers=args.workers or cfg.n_workers,
+            checkpoint=p["docking"] / f".ckpt_{r['name']}{suffix}.jsonl",
         )
         all_results.extend(res)
 
-    suffix = f"_shard{args.shard_index:03d}" if args.shard_count > 1 else ""
     tag = f"_{args.receptor}" if args.receptor else ""
     csv_path = p["docking"] / f"scores{tag}{suffix}.csv"
     dock_mod.write_scores_csv(all_results, csv_path)

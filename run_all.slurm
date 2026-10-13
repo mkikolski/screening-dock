@@ -8,9 +8,11 @@
 # MaxTime=UNLIMITED. 32 cpus takes a whole node; drop to 16 to share one.
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=24G
-# No cluster time limit, so this is only a safety net. Raise it rather than risk
-# a timeout: the dock stage has no checkpointing and restarts from zero.
-#SBATCH --time=48:00:00
+# Measured: ~30 min per docking at exhaustiveness 32 on this panel, so 500
+# ligand states x 5 receptors is ~60-95 h at 32 workers. MaxTime=UNLIMITED
+# here, so ask high -- the dock stage checkpoints per receptor, and rerunning
+# the same command resumes from the last completed docking.
+#SBATCH --time=120:00:00
 #SBATCH --partition=standard
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=mikolaj.kikolski@pwr.edu.pl
