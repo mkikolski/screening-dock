@@ -92,7 +92,7 @@ def main() -> int:
             notes.append(str(e))
 
         print(
-            f"{r.name:<22} receptor={len(rec):5d} (het {het:3d})  "
+            f"{r.name:<22} receptor={len(rec):5d} (cof {len(cof):3d})  "
             f"lig={len(lig):3d}  {box}"
         )
         for n in notes:
