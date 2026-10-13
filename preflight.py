@@ -64,7 +64,7 @@ def main() -> int:
     for r in cfg.receptors:
         try:
             pdb = Path(r.local_pdb) if r.local_pdb else fetch_pdb(r.pdb_id, cache)
-            rec, lig = split_pdb(
+            rec, lig, cof = split_pdb(
                 pdb, r.keep_chains, r.keep_hetatms, r.redock_ligand_resname
             )
         except Exception as e:  # network, missing file, malformed entry
@@ -72,14 +72,13 @@ def main() -> int:
             problems.append(f"{r.name}: {e}")
             continue
 
-        het = sum(1 for line in rec if line.startswith("HETATM"))
         notes = []
 
         if not rec:
             notes.append("NO RECEPTOR ATOMS (check keep_chains)")
-        # A cofactor named in the config but absent from the entry is dropped
-        # silently by split_pdb, so the run would succeed with a broken site.
-        if r.keep_hetatms and het == 0:
+        # prepare_receptor() hard-errors on this, but catching it here costs
+        # no queue time and names every bad receptor in one pass.
+        if r.keep_hetatms and not cof:
             notes.append(f"COFACTOR {','.join(r.keep_hetatms)} NOT IN ENTRY")
 
         try:

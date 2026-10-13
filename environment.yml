@@ -12,6 +12,9 @@ dependencies:
   - rdkit=2024.03.5
   - openmm
   - pdbfixer
+  # Types the rigid cofactors (NAP/NDP) that Meeko has no residue
+  # template for; see add_cofactor_to_receptor().
+  - openbabel
   - pip
   - pip:
     - meeko>=0.6.0

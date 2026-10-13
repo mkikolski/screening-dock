@@ -110,6 +110,12 @@ prep = [t for t in ("mk_prepare_receptor.py", "prepare_receptor")
 print(f"{'rec-prep':<9}: {prep[0] + ' -> ' + shutil.which(prep[0]) if prep else 'MISSING'}")
 if not prep:
     bad.append("mk_prepare_receptor.py/prepare_receptor")
+# Required by three of the five receptors: Meeko has no residue template
+# for NAP/NDP, so the cofactor is typed by obabel and appended.
+obabel = shutil.which("obabel")
+print(f"{'obabel':<9}: {obabel or 'MISSING'}")
+if not obabel:
+    bad.append("obabel")
 if bad:
     sys.exit("missing dependencies: " + ", ".join(bad))
 PY

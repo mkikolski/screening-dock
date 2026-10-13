@@ -45,10 +45,17 @@ def split_pdb(
     keep_chains: list[str] | None,
     keep_hetatms: list[str],
     ligand_resname: str | None,
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[str], list[str], list[str]]:
+    """Split into (protein, reference ligand, cofactors).
 
+    Cofactors come out separately rather than merged into the protein: Meeko
+    >=0.6 treats the receptor as a polymer and needs a residue template per
+    residue, and it ships none for NAP/NDP, so a cofactor left in the protein
+    file aborts the whole preparation.
+    """
     receptor: list[str] = []
     ligand: list[str] = []
+    cofactor: list[str] = []
     keep_het = {h.strip().upper() for h in keep_hetatms}
     lig_res = ligand_resname.strip().upper() if ligand_resname else None
 
@@ -60,6 +67,10 @@ def split_pdb(
             altloc = line[16]
             if altloc not in (" ", "A"):
                 continue
+            # Keeping altloc 'A' in column 17 makes Meeko stop and demand
+            # --wanted_altloc for every such residue, even though we have
+            # already picked one here. Blank it so the choice is final.
+            line = line[:16] + " " + line[17:]
             chain = line[21]
             resname = line[17:20].strip().upper()
 
@@ -72,8 +83,8 @@ def split_pdb(
                 if lig_res and resname == lig_res:
                     ligand.append(line)
                 elif resname in keep_het:
-                    receptor.append(line)
-    return receptor, ligand
+                    cofactor.append(line)
+    return receptor, ligand, cofactor
 
 
 def coords_from_lines(lines: list[str]) -> np.ndarray:
@@ -122,8 +133,15 @@ def receptor_to_pdbqt(in_pdb: Path, out_pdbqt: Path) -> Path:
     out_pdbqt.parent.mkdir(parents=True, exist_ok=True)
 
     for cmd in (
+        # --allow_bad_res drops residues Meeko cannot template. In practice
+        # those are chain termini and side chains the crystal never resolved
+        # (3U2D: TYR A:14 missing 7 heavy atoms, GLU A:230 the C-terminus),
+        # which are not part of any binding site. Cofactors are not in this
+        # file at all -- they are prepared separately -- so nothing that
+        # matters for docking can be silently deleted here.
         ["mk_prepare_receptor.py", "--read_pdb", str(in_pdb),
-         "-o", str(out_pdbqt.with_suffix("")), "--write_pdbqt"],
+         "-o", str(out_pdbqt.with_suffix("")), "--write_pdbqt",
+         "--allow_bad_res", "--default_altloc", "A"],
         ["prepare_receptor", "-r", str(in_pdb), "-o", str(out_pdbqt),
          "-A", "checkhydrogens"],
     ):
@@ -132,16 +150,17 @@ def receptor_to_pdbqt(in_pdb: Path, out_pdbqt: Path) -> Path:
             continue
         log.info("Receptor PDBQT via %s", cmd[0])
         proc = subprocess.run(cmd, capture_output=True, text=True)
-        if proc.returncode == 0 and out_pdbqt.exists():
-            return out_pdbqt
-        # The real cause is usually past the first 500 chars (RDKit tracebacks,
-        # meeko template warnings), so keep the whole thing on disk.
+        # Kept on success too: this is where Meeko names the residues
+        # --allow_bad_res threw away, and that list wants reviewing.
         errlog = out_pdbqt.with_suffix(".prep.log")
         errlog.write_text(
             f"$ {' '.join(cmd)}\nrc={proc.returncode}\n"
             f"--- stdout ---\n{proc.stdout}\n--- stderr ---\n{proc.stderr}",
             encoding="utf-8",
         )
+        if proc.returncode == 0 and out_pdbqt.exists():
+            log.info("%s: deleted-residue report in %s", cmd[0], errlog)
+            return out_pdbqt
         log.warning("%s failed (rc=%d); full output in %s\n%s",
                     cmd[0], proc.returncode, errlog,
                     proc.stderr.strip()[-800:])
@@ -150,6 +169,53 @@ def receptor_to_pdbqt(in_pdb: Path, out_pdbqt: Path) -> Path:
         "No receptor preparation tool succeeded. Install Meeko's "
         "mk_prepare_receptor.py or the ADFR suite's prepare_receptor."
     )
+
+
+def add_cofactor_to_receptor(
+    cofactor_lines: list[str],
+    rec_pdbqt: Path,
+    out_cofactor_pdbqt: Path,
+    ph: float = 7.4,
+) -> Path:
+    """Type the cofactor with Open Babel and append it to the receptor PDBQT.
+
+    Open Babel rather than RDKit+Meeko because bond orders cannot be recovered
+    from PDB coordinates without a SMILES template, and Vina does not need
+    them: its scoring reads the AutoDock atom type column only and ignores
+    partial charges entirely. A rigid cofactor therefore only has to be typed,
+    not charged correctly.
+    """
+    if shutil.which("obabel") is None:
+        raise RuntimeError(
+            "Cofactors declared in keep_hetatms but obabel is not installed; "
+            "run: conda install -c conda-forge openbabel"
+        )
+
+    src_pdb = out_cofactor_pdbqt.with_suffix(".pdb")
+    src_pdb.write_text("".join(cofactor_lines) + "END\n", encoding="utf-8")
+
+    # -xr: no torsion tree, the cofactor stays rigid. -p: add H at this pH.
+    cmd = ["obabel", str(src_pdb), "-O", str(out_cofactor_pdbqt),
+           "-xr", "-p", str(ph)]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if not out_cofactor_pdbqt.exists() or not out_cofactor_pdbqt.stat().st_size:
+        raise RuntimeError(
+            f"obabel failed to type the cofactor (rc={proc.returncode}): "
+            f"{proc.stderr.strip()[-500:]}"
+        )
+
+    # Only the coordinate records: obabel may emit ROOT/ENDROOT/TORSDOF, which
+    # a rigid Vina receptor must not contain. Serials are left clashing with
+    # the protein's on purpose -- Vina ignores them for a rigid receptor.
+    atoms = [l for l in out_cofactor_pdbqt.read_text(encoding="utf-8").splitlines(True)
+             if l[:6] in ("ATOM  ", "HETATM")]
+    if not atoms:
+        raise RuntimeError(f"No atoms in {out_cofactor_pdbqt} after obabel")
+
+    with open(rec_pdbqt, "a", encoding="utf-8") as fh:
+        fh.writelines(atoms)
+    log.info("Appended %d cofactor atoms to %s", len(atoms), rec_pdbqt.name)
+    return out_cofactor_pdbqt
 
 
 def ligand_lines_to_pdbqt(ligand_lines: list[str], out_pdbqt: Path,
@@ -212,14 +278,20 @@ def prepare_receptor(
         raise ValueError(f"Receptor {spec.name}: need pdb_id or local_pdb")
 
     lig_res = spec.redock_ligand_resname or spec.box.reference_ligand_resname
-    rec_lines, lig_lines = split_pdb(
+    rec_lines, lig_lines, cof_lines = split_pdb(
         src, spec.keep_chains, spec.keep_hetatms, lig_res
     )
     if not rec_lines:
         raise ValueError(f"Receptor {spec.name}: no atoms retained after filtering")
+    if spec.keep_hetatms and not cof_lines:
+        raise ValueError(
+            f"Receptor {spec.name}: keep_hetatms={spec.keep_hetatms} matched "
+            "nothing in the entry. Docking would run into a cofactor-less "
+            "pocket -- check the residue names against the PDB entry."
+        )
 
-    log.info("%s: %d receptor atoms, %d reference-ligand atoms",
-             spec.name, len(rec_lines), len(lig_lines))
+    log.info("%s: %d receptor atoms, %d reference-ligand atoms, %d cofactor atoms",
+             spec.name, len(rec_lines), len(lig_lines), len(cof_lines))
 
     clean_pdb = workdir / f"{spec.name}_clean.pdb"
     clean_pdb.write_text("".join(rec_lines) + "END\n", encoding="utf-8")
@@ -233,6 +305,12 @@ def prepare_receptor(
 
     rec_pdbqt = workdir / f"{spec.name}.pdbqt"
     receptor_to_pdbqt(prot_pdb, rec_pdbqt)
+
+    cof_pdbqt = None
+    if cof_lines:
+        cof_pdbqt = add_cofactor_to_receptor(
+            cof_lines, rec_pdbqt, workdir / f"{spec.name}_cofactor.pdbqt", spec.ph
+        )
 
     # Box
     if spec.box.center is not None:
@@ -262,6 +340,8 @@ def prepare_receptor(
         "reference_ligand_pdbqt": str(ref_pdbqt) if ref_pdbqt else None,
         "reference_ligand_pdb": str(ref_sdf) if ref_sdf else None,
         "reference_ligand_resname": lig_res,
+        "cofactor_pdbqt": str(cof_pdbqt) if cof_pdbqt else None,
+        "cofactor_atoms": len(cof_lines),
         "kept_hetatms": spec.keep_hetatms,
         "kept_chains": spec.keep_chains,
         "box_center": list(center),
