@@ -111,10 +111,15 @@ def cmd_redock(cfg: PipelineConfig, args) -> None:
     print("\n--- Redocking control (threshold 2.0 A) ---")
     for r in results:
         rmsd = r.get("rmsd_reported")
+        best, rank = r.get("rmsd_best"), r.get("best_pose_rank")
+        # best-of-N separates "wrong site" from "right pose, mis-ranked"
+        extra = "" if best is None or rank == 1 else f"  (best {best:.2f} @ rank {rank})"
+        if r.get("bond_orders") not in (None, "ideal_sdf"):
+            extra += f"  [bond orders: {r['bond_orders']} -- control INVALID]"
         print(
             f"  {r['receptor']:<24} "
             f"RMSD={rmsd if rmsd is None else f'{rmsd:.2f}':>6}  "
-            f"{r.get('verdict') or r.get('status')}"
+            f"{r.get('verdict') or r.get('status')}{extra}"
         )
 
     failed = [r for r in results if r.get("verdict") == "FAIL"]

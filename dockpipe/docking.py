@@ -143,34 +143,36 @@ def dock_many(
     return results
 
 
-def _heavy_atom_coords_pdbqt(path: str | Path) -> np.ndarray:
-    coords = []
+def _pose_blocks_pdbqt(path: str | Path) -> list[list[str]]:
+    """Coordinate lines of each MODEL, in Vina's ranking order."""
+    models: list[list[str]] = []
+    cur: list[str] = []
     with open(path, encoding="utf-8") as fh:
         for line in fh:
             if line[:6] in ("ATOM  ", "HETATM"):
-                elem = line[77:79].strip() or line[12:14].strip()
-                if elem.upper().startswith("H"):
-                    continue
-                coords.append(
-                    [float(line[30:38]), float(line[38:46]), float(line[46:54])]
-                )
-            if line.startswith("ENDMDL"):
-                break
+                cur.append(line)
+            elif line.startswith("ENDMDL") and cur:
+                models.append(cur)
+                cur = []
+    if cur:
+        models.append(cur)
+    return models
+
+
+def _heavy_atoms(lines: list[str], elem_col: int) -> np.ndarray:
+    coords = [
+        [float(l[30:38]), float(l[38:46]), float(l[46:54])]
+        for l in lines
+        if not (l[elem_col:elem_col + 2].strip()
+                or l[12:14].strip()).upper().startswith("H")
+    ]
     return np.asarray(coords, dtype=float)
 
 
 def _heavy_atom_coords_pdb(path: str | Path) -> np.ndarray:
-    coords = []
     with open(path, encoding="utf-8") as fh:
-        for line in fh:
-            if line[:6] in ("ATOM  ", "HETATM"):
-                elem = line[76:78].strip() or line[12:14].strip()
-                if elem.upper().startswith("H"):
-                    continue
-                coords.append(
-                    [float(line[30:38]), float(line[38:46]), float(line[46:54])]
-                )
-    return np.asarray(coords, dtype=float)
+        lines = [l for l in fh if l[:6] in ("ATOM  ", "HETATM")]
+    return _heavy_atoms(lines, 76)
 
 
 def symmetry_naive_rmsd(a: np.ndarray, b: np.ndarray) -> float | None:
@@ -212,53 +214,71 @@ def redock_control(
         return {"receptor": name, "status": "failed", "detail": rec}
 
     crystal = _heavy_atom_coords_pdb(ref_pdb) if ref_pdb else None
-    pose = _heavy_atom_coords_pdbqt(rec["pose_file"])
+    models = _pose_blocks_pdbqt(rec["pose_file"])
 
-    rmsd = None
-    if crystal is not None:
-        rmsd = symmetry_naive_rmsd(crystal, pose)
-        if rmsd is None:
-            log.warning(
-                "%s: atom-count mismatch (crystal %s vs pose %s); RMSD not computed",
-                name,
-                crystal.shape,
-                pose.shape,
-            )
-
-    rmsd_sym = None
-    try:
-        from spyrmsd import rmsd as sprmsd, molecule
-
-        ref_mol = molecule.Molecule.from_rdkit(_rdkit_from_pdb(ref_pdb))
-        pose_mol = molecule.Molecule.from_rdkit(_rdkit_from_pdbqt(rec["pose_file"]))
-        ref_mol.strip()
-        pose_mol.strip()
-        rmsd_sym = float(
-            sprmsd.symmrmsd(
-                ref_mol.coordinates,
-                pose_mol.coordinates,
-                ref_mol.atomicnums,
-                pose_mol.atomicnums,
-                ref_mol.adjacency_matrix,
-                pose_mol.adjacency_matrix,
-            )
+    # Every pose, not just Vina's top-ranked one. The literature convention is
+    # that redocking succeeds when the BEST-SCORED pose is within 2 A, so that
+    # stays the verdict -- but a native pose sitting at rank 3 means the box
+    # and the receptor are right and only the ranking is off, which is a
+    # completely different problem from a pose that is nowhere near the site.
+    per_pose: list[float] = []
+    for i, block in enumerate(models):
+        naive = (
+            symmetry_naive_rmsd(crystal, _heavy_atoms(block, 77))
+            if crystal is not None
+            else None
         )
-    except Exception as exc:
-        log.debug("spyrmsd unavailable or failed: %s", exc)
+        sym = None
+        try:
+            from spyrmsd import rmsd as sprmsd, molecule
 
-    final = rmsd_sym if rmsd_sym is not None else rmsd
+            ref_mol = molecule.Molecule.from_rdkit(_rdkit_from_pdb(ref_pdb))
+            pose_mol = molecule.Molecule.from_rdkit(_rdkit_from_pdb_block(block))
+            ref_mol.strip()
+            pose_mol.strip()
+            sym = float(
+                sprmsd.symmrmsd(
+                    ref_mol.coordinates,
+                    pose_mol.coordinates,
+                    ref_mol.atomicnums,
+                    pose_mol.atomicnums,
+                    ref_mol.adjacency_matrix,
+                    pose_mol.adjacency_matrix,
+                )
+            )
+        except Exception as exc:
+            log.debug("spyrmsd unavailable or failed on pose %d: %s", i + 1, exc)
+        value = sym if sym is not None else naive
+        if value is None:
+            log.warning(
+                "%s pose %d: RMSD not computed (crystal %s vs pose %d atoms)",
+                name, i + 1, None if crystal is None else crystal.shape, len(block),
+            )
+        else:
+            per_pose.append(value)
+
+    final = per_pose[0] if per_pose else None
+    best = min(per_pose) if per_pose else None
+    best_rank = per_pose.index(best) + 1 if per_pose else None
+
     verdict = None
     if final is not None:
         verdict = "PASS" if final <= 2.0 else "FAIL"
-        log.info("%s redocking RMSD = %.2f A -> %s", name, final, verdict)
+        log.info("%s redocking RMSD = %.2f A -> %s "
+                 "(best of %d poses: %.2f A at rank %d; bond orders: %s)",
+                 name, final, verdict, len(per_pose), best, best_rank,
+                 receptor_record.get("reference_bond_orders"))
 
     return {
         "receptor": name,
         "status": "ok",
         "best_score": rec["best_score"],
-        "rmsd_naive": rmsd,
-        "rmsd_symmetry_corrected": rmsd_sym,
         "rmsd_reported": final,
+        "rmsd_best": best,
+        "best_pose_rank": best_rank,
+        "n_poses_scored": len(per_pose),
+        "rmsd_per_pose": per_pose,
+        "bond_orders": receptor_record.get("reference_bond_orders"),
         "threshold": 2.0,
         "verdict": verdict,
         "pose_file": rec["pose_file"],
@@ -271,17 +291,16 @@ def _rdkit_from_pdb(path):
     return Chem.MolFromPDBFile(str(path), removeHs=True, sanitize=False)
 
 
-def _rdkit_from_pdbqt(path):
+def _rdkit_from_pdb_block(lines):
+    """One pose's PDBQT coordinate lines as a mol.
+
+    Truncated at column 66: past it a PDBQT carries the partial charge and the
+    AutoDock type, which RDKit's PDB parser would read as occupancy/element.
+    """
     from rdkit import Chem
 
-    lines = []
-    with open(path, encoding="utf-8") as fh:
-        for line in fh:
-            if line.startswith("ENDMDL"):
-                break
-            if line[:6] in ("ATOM  ", "HETATM"):
-                lines.append(line[:66] + "\n")
-    return Chem.MolFromPDBBlock("".join(lines) + "END\n", removeHs=True, sanitize=False)
+    block = "".join(l[:66] + "\n" for l in lines) + "END\n"
+    return Chem.MolFromPDBBlock(block, removeHs=True, sanitize=False)
 
 
 def write_scores_csv(results: list[dict], path: str | Path) -> Path:

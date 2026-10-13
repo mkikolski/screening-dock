@@ -15,6 +15,10 @@ log = logging.getLogger(__name__)
 
 RCSB_PDB = "https://files.rcsb.org/download/{pdb_id}.pdb"
 PDB_REDO = "https://pdb-redo.eu/db/{pdb_id}/{pdb_id}_final.pdb"
+# The chemical component's idealised structure. Coordinates are useless here,
+# but the bond orders are authoritative and cannot be recovered from the PDB
+# entry, which stores no connectivity for ligands.
+RCSB_LIGAND = "https://files.rcsb.org/ligands/download/{res}_ideal.sdf"
 
 
 
@@ -34,6 +38,23 @@ def fetch_pdb(pdb_id: str, dest_dir: Path, use_pdb_redo: bool = False) -> Path:
     dest.write_bytes(data)
     return dest
 
+
+
+def fetch_ligand_template(resname: str, dest_dir: Path) -> Path | None:
+    """Idealised SDF for a PDB chemical component, cached. None if unavailable."""
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    res = resname.strip().upper()
+    dest = dest_dir / f"{res}_ideal.sdf"
+    if dest.exists() and dest.stat().st_size > 0:
+        return dest
+    url = RCSB_LIGAND.format(res=res)
+    try:
+        with urllib.request.urlopen(url, timeout=60) as resp:
+            dest.write_bytes(resp.read())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("No ideal SDF for %s (%s): %s", res, url, exc)
+        return None
+    return dest
 
 
 def _is_water(resname: str) -> bool:
@@ -229,30 +250,47 @@ def add_cofactor_to_receptor(
 
 
 def ligand_lines_to_pdbqt(ligand_lines: list[str], out_pdbqt: Path,
-                          template_smiles: str | None = None) -> Path | None:
-    """Convert extracted co-crystal ligand HETATM lines to PDBQT for redocking."""
+                          template_sdf: Path | None = None
+                          ) -> tuple[Path | None, str]:
+    """Convert extracted co-crystal ligand HETATM lines to PDBQT for redocking.
+
+    Returns (path, bond_order_source). A PDB entry stores no connectivity for
+    ligands, so without `template_sdf` RDKit perceives bonds by proximity and
+    makes every one of them single; sanitization then saturates the aromatic
+    rings. The result is a hydrogenated analogue of the crystal ligand, and
+    redocking it measures nothing useful -- hence the second return value.
+    """
     from rdkit import Chem
+    from rdkit.Chem import AllChem
     from meeko import MoleculePreparation, PDBQTWriterLegacy
 
     block = "".join(ligand_lines) + "END\n"
     mol = Chem.MolFromPDBBlock(block, removeHs=False, sanitize=False)
     if mol is None:
         log.warning("Could not parse extracted ligand block")
-        return None
+        return None, "unparsed"
 
-    if template_smiles:
+    source = "proximity_guess"
+    if template_sdf is not None:
         try:
-            ref = Chem.MolFromSmiles(template_smiles)
-            mol = Chem.AllChem.AssignBondOrdersFromTemplate(ref, mol)
+            ref = Chem.MolFromMolFile(str(template_sdf), sanitize=True)
+            if ref is None:
+                raise ValueError(f"unreadable template {template_sdf}")
+            mol = AllChem.AssignBondOrdersFromTemplate(Chem.RemoveHs(ref), mol)
+            source = "ideal_sdf"
         except Exception as exc:  # noqa: BLE001
-            log.warning("Bond-order assignment from template failed: %s", exc)
+            # Loud: the redocking verdict is not interpretable without this.
+            log.warning(
+                "Bond-order assignment from %s failed (%s). Reference ligand "
+                "will have GUESSED bond orders and its redocking RMSD is not "
+                "a valid control.", template_sdf, exc)
 
     try:
         Chem.SanitizeMol(mol)
         mol = Chem.AddHs(mol, addCoords=True)
     except Exception as exc:  # noqa: BLE001
         log.warning("Ligand sanitization failed: %s", exc)
-        return None
+        return None, source
 
     molprep = MoleculePreparation()
     for molsetup in molprep.prepare(mol):
@@ -260,9 +298,9 @@ def ligand_lines_to_pdbqt(ligand_lines: list[str], out_pdbqt: Path,
         if ok:
             out_pdbqt.parent.mkdir(parents=True, exist_ok=True)
             out_pdbqt.write_text(pdbqt, encoding="utf-8")
-            return out_pdbqt
+            return out_pdbqt, source
         log.warning("Reference ligand PDBQT write failed: %s", err)
-    return None
+    return None, source
 
 
 # --------------------------------------------------------------------------
@@ -345,12 +383,17 @@ def prepare_receptor(
     # Reference ligand for the redocking control
     ref_pdbqt = None
     ref_sdf = None
+    bond_orders = None
     if lig_lines:
+        template = fetch_ligand_template(lig_res, workdir / "raw") if lig_res else None
         ref_pdbqt = workdir / f"{spec.name}_ref.pdbqt"
-        if ligand_lines_to_pdbqt(lig_lines, ref_pdbqt) is None:
-            ref_pdbqt = None
+        ref_pdbqt, bond_orders = ligand_lines_to_pdbqt(
+            lig_lines, ref_pdbqt, template
+        )
         ref_sdf = workdir / f"{spec.name}_ref.pdb"
         ref_sdf.write_text("".join(lig_lines) + "END\n", encoding="utf-8")
+        log.info("%s: reference ligand %s, bond orders from %s",
+                 spec.name, lig_res, bond_orders)
 
     record = {
         "name": spec.name,
@@ -362,6 +405,7 @@ def prepare_receptor(
         "reference_ligand_pdbqt": str(ref_pdbqt) if ref_pdbqt else None,
         "reference_ligand_pdb": str(ref_sdf) if ref_sdf else None,
         "reference_ligand_resname": lig_res,
+        "reference_bond_orders": bond_orders,
         "cofactor_pdbqt": str(cof_pdbqt) if cof_pdbqt else None,
         "cofactor_atoms": len(cof_lines),
         "kept_hetatms": spec.keep_hetatms,
