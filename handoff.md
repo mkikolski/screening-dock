@@ -6,7 +6,9 @@ State: validated and ready to submit. Nothing is pushed yet.
 
 ```bash
 # local
-git push -u origin master          # 6 commits, no upstream set yet
+git push -u origin master          # 2 commits outstanding: 13f143e, 19735c7
+                                   # (origin/master is at ad6cfe8; -u just
+                                   #  sets the missing upstream tracking)
 
 # cluster
 cd /storage/users/kikolski/screening-dock && git pull
