@@ -114,15 +114,25 @@ def derive_box(ligand_lines: list[str], spec: BoxSpec) -> tuple[tuple, tuple]:
 
 
 
-def protonate_with_pdbfixer(in_pdb: Path, out_pdb: Path, ph: float = 7.4) -> Path:
+def protonate_with_pdbfixer(in_pdb: Path, out_pdb: Path, ph: float = 7.4,
+                            add_heavy: bool = True) -> Path:
+    """Add hydrogens at `ph`, and optionally rebuild missing heavy atoms.
+
+    add_heavy=False exists because addMissingAtoms() caps the C-terminus with
+    OXT, and Meeko then cannot build an RDKit mol for that residue at all
+    (3U2D GLU A:230, 4ZVI THR A:392 both die with a 5-valent backbone carbon).
+    Without it the unresolved side chains stay unresolved and Meeko's
+    --allow_bad_res drops them, which beats docking against invented atoms.
+    """
     from pdbfixer import PDBFixer
     from openmm.app import PDBFile
 
     fixer = PDBFixer(filename=str(in_pdb))
     fixer.findMissingResidues()
     fixer.missingResidues = {}
-    fixer.findMissingAtoms()
-    fixer.addMissingAtoms()
+    if add_heavy:
+        fixer.findMissingAtoms()
+        fixer.addMissingAtoms()
     fixer.addMissingHydrogens(ph)
     with open(out_pdb, "w", encoding="utf-8") as fh:
         PDBFile.writeFile(fixer.topology, fixer.positions, fh, keepIds=True)
@@ -297,14 +307,26 @@ def prepare_receptor(
     clean_pdb.write_text("".join(rec_lines) + "END\n", encoding="utf-8")
 
     prot_pdb = workdir / f"{spec.name}_H.pdb"
-    try:
-        protonate_with_pdbfixer(clean_pdb, prot_pdb, spec.ph)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("%s: PDBFixer failed (%s); using unprotonated model", spec.name, exc)
-        shutil.copy(clean_pdb, prot_pdb)
-
     rec_pdbqt = workdir / f"{spec.name}.pdbqt"
-    receptor_to_pdbqt(prot_pdb, rec_pdbqt)
+
+    # Rebuilding missing heavy atoms helps some entries and makes Meeko reject
+    # others outright, and which is which is a property of the crystal, not of
+    # anything we can check up front. So try it, then retry without.
+    for add_heavy in (True, False):
+        try:
+            protonate_with_pdbfixer(clean_pdb, prot_pdb, spec.ph, add_heavy)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("%s: PDBFixer failed (%s); using unprotonated model",
+                        spec.name, exc)
+            shutil.copy(clean_pdb, prot_pdb)
+        try:
+            receptor_to_pdbqt(prot_pdb, rec_pdbqt)
+            break
+        except RuntimeError:
+            if not add_heavy:
+                raise
+            log.warning("%s: receptor prep failed with rebuilt heavy atoms; "
+                        "retrying without them", spec.name)
 
     cof_pdbqt = None
     if cof_lines:
