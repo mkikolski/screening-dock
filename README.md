@@ -229,44 +229,43 @@ otherwise oversubscribe the node, which is also why run_all.slurm exports
 
 ## Creating the environment
 
-The env lives inside the shared miniforge install, at
-`/opt/modules/miniforge3/envs/dockpipe`. That location matters: **`$HOME` is
-not shared with the compute nodes.** An env under `~/.conda/envs` works
-interactively on the login node and then does not exist at all inside a batch
-job, which looks like a broken env rather than a missing mount. `envs/` in the
-shared install is group-writable, so the env goes there, under its own name,
-which is where both `run_all.slurm` and the modulefile look.
+The env has to satisfy two conditions at once: **writable by you**, and
+**mounted on the compute nodes**. Only `/storage` does both.
+
+| location | writable | on compute nodes |
+|---|---|---|
+| `/opt/modules/miniforge3/envs` | no - `general:general rwxrwxr-x` | yes |
+| `~/.conda/envs` | yes | **no** |
+| `/storage/users/$USER/envs` | yes | yes |
+
+`$HOME` is the trap: an env there works interactively on the login node and
+then does not exist inside a batch job, which reads as a broken env rather
+than a missing mount.
 
 `/opt/modules/miniforge3` is not on `PATH` and has no module of its own, so
-`conda` has to be bootstrapped by sourcing its init script. Create the env
-once, from the login node:
+`conda` is bootstrapped by sourcing its init script. Create the env once, from
+the login node:
 
 ```bash
 source /opt/modules/miniforge3/etc/profile.d/conda.sh   # defines `conda`
-conda env create -p /opt/modules/miniforge3/envs/dockpipe -f environment.yml
+export CONDA_PKGS_DIRS=/storage/users/$USER/conda_pkgs  # cache is several GB
+conda env create -p /storage/users/$USER/envs/dockpipe -f environment.yml
 ```
 
-Use `-p` with the full path rather than `-n`: `-n` writes to the first entry of
-conda's `envs_dirs`, which defaults to `~/.conda/envs` and lands you back on
-the unshared filesystem.
+Use `-p` with the full path, never `-n`: `-n` writes to the first entry of
+conda's `envs_dirs`, which is `~/.conda/envs`, putting the env straight back
+on the filesystem the compute nodes cannot see.
 
-`run_all.slurm` exports `CONDA_ENVS_PATH=/opt/modules/miniforge3/envs` and then
-activates by name, so nothing needs a prefix path at run time. Override the
-name with `DOCKPIPE_ENV` and the install with `DOCKPIPE_CONDA_ROOT` if either
-moves.
+`run_all.slurm` defaults `CONDA_ENVS_PATH` to `/storage/users/$LOGNAME/envs`
+and activates by name, so no prefix path is needed at run time. If you *are*
+in the group that owns the shared install, put the env there instead and set
+`DOCKPIPE_ENVS_PATH=/opt/modules/miniforge3/envs`.
 
-If the package cache is not writable, point it somewhere that is — the
-packages run to several GB and the default `~/.conda/pkgs` is both unshared and
-usually quota'd:
-
-```bash
-export CONDA_PKGS_DIRS=/storage/users/$USER/conda_pkgs
-```
-
-Verify the env is visible from a compute node before committing to a long job:
+Verify before committing to a long job - this is the check that would have
+caught the `$HOME` mistake:
 
 ```bash
-srun -p standard -n1 ls /opt/modules/miniforge3/envs/dockpipe/bin/python
+srun -p standard -n1 ls /storage/users/$USER/envs/dockpipe/bin/python
 ```
 
 ## Environment via Lmod

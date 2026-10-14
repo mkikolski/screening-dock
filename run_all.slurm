@@ -60,11 +60,12 @@ export HOME="${HOME:-$(getent passwd "$LOGNAME" | cut -d: -f6)}"
 # env under ~/.conda worked interactively on the login node and then did not
 # exist inside the job. Same layout as the other group modules.
 export CONDA_EXE="$CONDA_ROOT/bin/conda"
-# Overridable because miniforge3/envs is group-writable, not world-writable:
-# if this account is not in the owning group, the env has to be created
-# somewhere else shared (e.g. /storage/users/$USER/envs) and this pointed at
-# it. Activation is still by name, so only this one variable changes.
-export CONDA_ENVS_PATH="${DOCKPIPE_ENVS_PATH:-$CONDA_ROOT/envs}"
+# Not $CONDA_ROOT/envs: that is general:general rwxrwxr-x and this account is
+# not in the group, so it is read-only here. /storage/users/$LOGNAME is both
+# writable and mounted on the compute nodes, which is the pair of properties
+# that matters -- $HOME has only the first. Point DOCKPIPE_ENVS_PATH at
+# $CONDA_ROOT/envs instead if you are in the owning group.
+export CONDA_ENVS_PATH="${DOCKPIPE_ENVS_PATH:-/storage/users/$LOGNAME/envs}"
 # A plain name, not a prefix path: the env is inside CONDA_ENVS_PATH, so
 # `conda activate dockpipe` resolves it.
 ENV_NAME="${DOCKPIPE_ENV:-dockpipe}"

@@ -8,11 +8,14 @@ State: validated and ready to submit. Nothing is pushed yet.
 # 1. local
 git push
 
-# 2. cluster -- ONE-TIME: create the env in the shared miniforge install.
-#    $HOME does not travel to the compute node, so an env under ~/.conda is
-#    unusable from a batch job even though it works interactively.
+# 2. cluster -- ONE-TIME env creation. It must be on /storage: $HOME is not
+#    mounted on the compute nodes, and miniforge3/envs is not writable by us.
 cd /storage/users/kikolski/screening-dock && git pull
-conda env create -p /opt/modules/miniforge3/envs/dockpipe -f environment.yml
+source /opt/modules/miniforge3/etc/profile.d/conda.sh
+export CONDA_PKGS_DIRS=/storage/users/$USER/conda_pkgs
+ls -A /storage/users/$USER/envs/dockpipe     # inspect any earlier attempt first
+conda env create -p /storage/users/$USER/envs/dockpipe -f environment.yml
+srun -p standard -n1 ls /storage/users/$USER/envs/dockpipe/bin/python
 
 # 3. submit
 sbatch run_all.slurm

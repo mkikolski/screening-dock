@@ -22,11 +22,13 @@ whatis("Description: AutoDock Vina panel screening with Meeko ligand prep")
 family("conda_env")
 conflict("python_md")
 
--- The env lives inside the shared miniforge install, which every compute node
--- mounts. $HOME does not travel to the node a job lands on, so an env under
--- ~/.conda is unusable from a batch job even though it works interactively.
+-- conda_root is only the miniforge install; the env cannot live under it
+-- because miniforge3/envs is general:general rwxrwxr-x and this account is not
+-- in that group. It goes on /storage, which is writable AND mounted on the
+-- compute nodes -- $HOME is not, so an env under ~/.conda works interactively
+-- on the login node and then does not exist inside a batch job.
 local conda_root = "/opt/modules/miniforge3"
-local env_root = pathJoin(conda_root, "envs")
+local env_root = pathJoin("/storage/users", os.getenv("USER") or "", "envs")
 local env_name = "dockpipe"
 local env_path = pathJoin(env_root, env_name)
 local project_path = "/storage/users/kikolski/screening-dock"
