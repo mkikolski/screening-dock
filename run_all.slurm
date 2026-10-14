@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-#SBATCH --export=NONE
+# ALL (SLURM's default) so the job inherits a usable environment -- with
+# NONE even LOGNAME is unset and Lmod's own init script dies on it.
+# Reproducibility does not depend on this: the job purges modules,
+# activates one explicit env prefix, dumps the resolved environment to
+# logs/env_<jobid>.txt, and records the commit and package versions in
+# every manifest. What DOES leak in is sanitized below.
+#SBATCH --export=ALL
 #SBATCH --job-name=dockpipe
 # Relative to the SUBMIT directory, so submit from the project root:
 #   cd /storage/users/kikolski/screening-dock && sbatch run_all.slurm
@@ -35,17 +41,21 @@ ENV_NAME="${DOCKPIPE_ENV:-/storage/users/kikolski/envs/dockpipe}"
 # env lives in your own storage.
 CONDA_ROOT="${DOCKPIPE_CONDA_ROOT:-/opt/modules/miniforge3}"
 
-# --export=NONE gives the job an almost empty environment: Lmod's shell
-# function is not inherited, a non-login bash does not source /etc/profile.d,
-# and even LOGNAME/USER are unset. Lmod's own init script reads LOGNAME
-# unguarded, so under `set -u` it aborts the job -- define them first.
-# Everything that sources third-party init scripts runs with `set -u` off and
-# `set -e` relaxed: neither Lmod's init nor conda.sh/conda activate is written
-# to survive them, and a harmless unbound variable inside someone else's
-# script must not kill a 40-hour job. The identity exports go here too, since
-# getent can legitimately fail and must not abort anything.
+# Variables that would let the submitting shell shadow the env's own
+# packages: a stale PYTHONPATH or an active virtualenv silently wins over
+# conda activate, and LD_LIBRARY_PATH breaks compiled extensions in ways that
+# surface hours later as an import error. Dropped before anything is set up.
+unset PYTHONPATH PYTHONHOME PYTHONSTARTUP LD_PRELOAD LD_LIBRARY_PATH
+unset VIRTUAL_ENV CONDA_PREFIX CONDA_DEFAULT_ENV
+
+# Third-party init scripts run with `set -u` off and `set -e` relaxed. Neither
+# Lmod's init nor conda.sh is written to survive those options, and an unbound
+# variable inside someone else's script must not kill a 40-hour job.
 set +eu
 
+# A login shell supplies these; a batch job is not guaranteed one, and Lmod's
+# init reads LOGNAME unguarded. Derived here, after set +eu, because getent can
+# legitimately fail and must not abort anything.
 export LOGNAME="${LOGNAME:-${SLURM_JOB_USER:-$(id -un)}}"
 export USER="${USER:-$LOGNAME}"
 export HOME="${HOME:-$(getent passwd "$LOGNAME" | cut -d: -f6)}"
@@ -95,7 +105,10 @@ fi
 echo "python : $(command -v python)"
 
 export PYTHONNOUSERSITE=1
-export PYTHONPATH="$PROJECT${PYTHONPATH:+:$PYTHONPATH}"
+# Set exactly, never appended: an inherited PYTHONPATH is the thing most
+# likely to make this job import a different copy of the code than the commit
+# recorded below.
+export PYTHONPATH="$PROJECT"
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 
