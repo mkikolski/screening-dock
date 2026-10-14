@@ -80,10 +80,26 @@ for cand in "${ENV_CANDIDATES[@]}"; do
 done
 
 if [[ -z "$ENV_NAME" ]]; then
-  echo "No usable dockpipe conda env found. Tried:" >&2
-  printf '  %s\n' "${ENV_CANDIDATES[@]}" >&2
-  echo "Set DOCKPIPE_ENV=/path/to/env, or create one:" >&2
-  echo "  conda env create -p <path> -f $PROJECT/environment.yml" >&2
+  echo "No usable dockpipe conda env found on $(hostname). Tried:" >&2
+  for cand in "${ENV_CANDIDATES[@]}"; do
+    if [[ ! -d "$cand" ]]; then
+      why="no such directory -- not mounted on this node?"
+    elif [[ ! -d "$cand/conda-meta" ]]; then
+      why="exists but is not a conda env (no conda-meta/)"
+    else
+      why="conda env without an executable bin/python"
+    fi
+    printf '  %-48s %s\n' "$cand" "$why" >&2
+  done
+  echo >&2
+  echo "A compute node does not necessarily mount \$HOME. If the env above is" >&2
+  echo "in your home directory and reports 'no such directory', that is why --" >&2
+  echo "put the env on shared storage instead:" >&2
+  echo "  conda create -p /storage/users/\$USER/envs/dockpipe \\" >&2
+  echo "    --clone \$HOME/.conda/envs/dockpipe        # exact copy, no re-resolve" >&2
+  echo "  # or from scratch:" >&2
+  echo "  conda env create -p /storage/users/\$USER/envs/dockpipe \\" >&2
+  echo "    -f $PROJECT/environment.yml" >&2
   exit 1
 fi
 echo "env    : $ENV_NAME"
