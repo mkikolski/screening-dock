@@ -20,6 +20,8 @@ from pathlib import Path
 
 from rdkit import Chem, RDLogger
 
+from .common import read_checkpoint
+
 log = logging.getLogger(__name__)
 RDLogger.DisableLog("rdApp.*")
 
@@ -131,6 +133,7 @@ def process_ligands(
     skip_tautomers: bool = True,
     n_attempts: int = 5,
     n_workers: int = 8,
+    checkpoint: str | Path | None = None,
 ) -> list[dict]:
     """Prepare every ligand in a .smi file. Returns one record per input."""
     output_path = Path(output_path)
@@ -139,23 +142,44 @@ def process_ligands(
     entries = read_smiles(ligands_path)
     log.info("Read %d ligands from %s", len(entries), ligands_path)
 
+    # ligand_index.json is only written at the end, so without a checkpoint an
+    # interrupted prep leaves nothing behind and `dock` then refuses to start.
+    done = read_checkpoint(checkpoint, key="name") if checkpoint else {}
+    if done:
+        log.info("Resuming: %d ligands already prepared", len(done))
+
     tasks = [
         LigandTask(smiles=smi, name=name, outdir=str(output_path),
                    max_attempts=n_attempts)
         for smi, name in entries
+        if name not in done
     ]
 
     n_workers = max(1, min(os.cpu_count() or 1, n_workers))
-    records: list[dict] = []
-    with Pool(
-        processes=n_workers,
-        initializer=_init_worker,
-        initargs=(ph, skip_tautomers),
-    ) as pool:
-        for rec in pool.imap_unordered(process_ligand, tasks, chunksize=4):
-            records.append(rec)
-            if len(records) % 50 == 0:
-                log.info("prepared %d/%d", len(records), len(tasks))
+    records: list[dict] = list(done.values())
+    fh = None
+    if checkpoint:
+        Path(checkpoint).parent.mkdir(parents=True, exist_ok=True)
+        fh = open(checkpoint, "a", encoding="utf-8")
+    try:
+        if tasks:
+            with Pool(
+                processes=n_workers,
+                initializer=_init_worker,
+                initargs=(ph, skip_tautomers),
+            ) as pool:
+                for i, rec in enumerate(
+                    pool.imap_unordered(process_ligand, tasks, chunksize=4), 1
+                ):
+                    records.append(rec)
+                    if fh is not None:
+                        fh.write(json.dumps(rec) + "\n")
+                        fh.flush()
+                    if i % 50 == 0 or i == len(tasks):
+                        log.info("prepared %d/%d", i, len(tasks))
+    finally:
+        if fh is not None:
+            fh.close()
 
     ok = sum(r["status"] == "ok" for r in records)
     states = sum(r["n_states"] for r in records)

@@ -13,8 +13,8 @@ import json
 import tempfile
 from pathlib import Path
 
-from dockpipe.common import VinaSpec
-from dockpipe.docking import dock_many, read_checkpoint
+from dockpipe.common import VinaSpec, read_checkpoint
+from dockpipe.docking import dock_many
 
 RECEPTOR = {
     "name": "r",
@@ -47,7 +47,17 @@ def main() -> None:
 
     assert read_checkpoint(d / "absent.jsonl") == {}
 
-    print("checkpoint resume OK")
+    # The ligand stage keys on "name", not "ligand".
+    lk = d / ".ckpt_ligands.jsonl"
+    lk.write_text(
+        json.dumps({"name": "m1", "smiles": "CCO", "pdbqt_files": ["m1_0.pdbqt"],
+                    "n_states": 1, "status": "ok", "error": None}) + "\n"
+    )
+    assert set(read_checkpoint(lk, key="name")) == {"m1"}
+    # ...and the docking key must not silently match it
+    assert read_checkpoint(lk, key="ligand") == {}
+
+    print("checkpoint resume OK (both stages)")
 
 
 if __name__ == "__main__":

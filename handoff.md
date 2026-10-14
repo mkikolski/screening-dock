@@ -1,42 +1,37 @@
-# Handoff — 2026-10-13
+# Handoff — 2026-10-14
 
 State: validated and ready to submit. Nothing is pushed yet.
 
 ## Do this first
 
-```bash
-# local
-git push -u origin master          # 2 commits outstanding: 13f143e, 19735c7
-                                   # (origin/master is at ad6cfe8; -u just
-                                   #  sets the missing upstream tracking)
+Three steps. Everything else is fixed in the code.
 
-# cluster
+```bash
+# 1. local
+git push
+
+# 2. cluster
 cd /storage/users/kikolski/screening-dock && git pull
-conda activate /storage/users/kikolski/envs/dockpipe
-conda install -c conda-forge openbabel   # ONLY if not already installed
-python test_checkpoint.py                # must print "checkpoint resume OK"
-```
+conda install -c conda-forge openbabel   # only if `which obabel` is empty
+python test_checkpoint.py                # must print "checkpoint resume OK (both stages)"
 
-Then, before submitting, edit `run_all.slurm`: the `redock` step needs
-`--allow-fail`, or the job dies ~10 min in (see *Redocking* below).
-
-```bash
-srun --job-name=redock \
-  python run_pipeline.py redock --config "$CONFIG" --allow-fail
-```
-
-## Then
-
-```bash
-# Front-loaded only to get the state count, which decides the runtime.
-# run_all.slurm runs this itself and will find the work already done.
-python run_pipeline.py prep-ligands --config configs/panel500.yaml --workers 32
-python -c "import json; print(len(json.load(open(
-  'results/panel500_v1/ligands/ligand_index.json'))))"
-
+# 3. submit
 sbatch run_all.slurm
 squeue -u $USER
 ```
+
+`run_all.slurm` runs all five stages itself: prep-receptors, redock
+(`--allow-fail` is already in the file), prep-ligands, dock, merge. No manual
+edits are needed any more.
+
+Both long stages checkpoint, so **if anything dies, resubmit the same script**
+and it resumes from the last finished item:
+
+- `results/panel500_v1/ligands/.ckpt_ligands.jsonl`
+- `results/panel500_v1/docking/.ckpt_<receptor>.jsonl`
+
+`scores.csv` is rewritten after every receptor and `ligand_index.json` after
+the ligand stage, so a killed run still leaves usable output for `merge`.
 
 Runtime at 32 workers, from the measured ~30 min per docking:
 
@@ -46,18 +41,13 @@ Runtime at 32 workers, from the measured ~30 min per docking:
 | 750 | 3,750 | 59 h |
 | 1,000 | 5,000 | 78 h |
 
-`--time` is 120 h, which covers all three. If the count is near 1,000 and
-node 2 is free, `--shard-count 2` across a 2-task array halves it;
-`merge_results.py` already globs `scores*.csv`, so the merge needs no change.
+`--time` is 168 h. The progress line prints live min/docking and hours
+remaining every 25 dockings -- check it in the first hour, since the 30 min
+figure came from `head -10` of the SMILES file and that sample may be biased.
 
-The dock stage checkpoints to
-`results/panel500_v1/docking/.ckpt_<receptor>.jsonl`, flushed per docking.
-**Rerunning the same command resumes** — an interruption costs one docking,
-not the run. That is what `test_checkpoint.py` guards.
-
-The progress line prints live min/docking and hours remaining every 25
-dockings. Check it within the first hour: the 30 min figure came from
-`head -10` of the SMILES file, so if that file is sorted the sample is biased.
+If the state count is near 1,000 and node 2 is free, `--shard-count 2` across
+a 2-task array halves it; `merge_results.py` already globs `scores*.csv` and
+dedups on `(ligand, receptor)`.
 
 ## Redocking: 3/5 PASS, and that is the accepted state
 

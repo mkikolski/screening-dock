@@ -76,6 +76,7 @@ def cmd_prep_ligands(cfg: PipelineConfig, args) -> None:
         skip_tautomers=cfg.skip_tautomers,
         n_attempts=cfg.n_scrub_attempts,
         n_workers=args.workers or cfg.n_workers,
+        checkpoint=p["ligands"] / ".ckpt_ligands.jsonl",
     )
     write_manifest(
         p["manifests"] / "ligands.json",
@@ -151,6 +152,9 @@ def cmd_dock(cfg: PipelineConfig, args) -> None:
 
     suffix = f"_shard{args.shard_index:03d}" if args.shard_count > 1 else ""
 
+    tag = f"_{args.receptor}" if args.receptor else ""
+    csv_path = p["docking"] / f"scores{tag}{suffix}.csv"
+
     all_results = []
     for r in receptors:
         # Per receptor and per shard, so concurrent array tasks never share a
@@ -164,10 +168,9 @@ def cmd_dock(cfg: PipelineConfig, args) -> None:
             checkpoint=p["docking"] / f".ckpt_{r['name']}{suffix}.jsonl",
         )
         all_results.extend(res)
-
-    tag = f"_{args.receptor}" if args.receptor else ""
-    csv_path = p["docking"] / f"scores{tag}{suffix}.csv"
-    dock_mod.write_scores_csv(all_results, csv_path)
+        # Rewritten after each receptor: a run killed partway still leaves a
+        # CSV for merge_results.py, which otherwise exits "No shard CSVs".
+        dock_mod.write_scores_csv(all_results, csv_path)
 
     write_manifest(
         p["manifests"] / f"dock{tag}{suffix}.json",

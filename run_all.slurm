@@ -9,10 +9,11 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=24G
 # Measured: ~30 min per docking at exhaustiveness 32 on this panel, so 500
-# ligand states x 5 receptors is ~60-95 h at 32 workers. MaxTime=UNLIMITED
-# here, so ask high -- the dock stage checkpoints per receptor, and rerunning
-# the same command resumes from the last completed docking.
-#SBATCH --time=120:00:00
+# ligand states x 5 receptors is 39-78 h at 32 workers. MaxTime=UNLIMITED
+# here, so this is only a safety net and is deliberately well clear of the
+# estimate. Both long stages checkpoint, so rerunning the same command
+# resumes rather than starting over.
+#SBATCH --time=168:00:00
 #SBATCH --partition=standard
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=mikolaj.kikolski@pwr.edu.pl
@@ -136,8 +137,12 @@ echo "=========================================="
 srun --job-name=prep-receptors \
   python run_pipeline.py prep-receptors --config "$CONFIG"
 
+# --allow-fail is required, not optional: gyrb_ecoli_4zvi and
+# fabi_saureus_3gr6 fail the 2 A top-pose gate for documented reasons (Vina
+# mis-ranks a pose it did find -- see README). Without the flag the gate
+# sys.exit()s and set -e kills the job before any docking starts.
 srun --job-name=redock \
-  python run_pipeline.py redock --config "$CONFIG"
+  python run_pipeline.py redock --config "$CONFIG" --allow-fail
 
 srun --job-name=prep-ligands \
   python run_pipeline.py prep-ligands --config "$CONFIG" --workers "$WORKERS"

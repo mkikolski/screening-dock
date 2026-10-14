@@ -42,6 +42,36 @@ def sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def read_checkpoint(path: str | Path, key: str = "ligand") -> dict[str, dict]:
+    """Records from an append-only JSONL checkpoint, indexed by `key`.
+
+    Both long stages append a flushed line per finished item so an interrupted
+    run resumes instead of starting over. A record counts as done whatever its
+    status: every failure mode here is deterministic (unparseable SMILES, a
+    Vina exception on one ligand), so retrying only burns the ~30 min the
+    docking cost in the first place. Callers log the failure count instead.
+    """
+    done: dict[str, dict] = {}
+    path = Path(path)
+    if not path.exists():
+        return done
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+                done[rec[key]] = rec
+            except (json.JSONDecodeError, KeyError):
+                # A killed job can leave a half-written final line. Everything
+                # before it is still good, so skip it rather than start over.
+                logging.getLogger(__name__).warning(
+                    "Ignoring truncated checkpoint line in %s", path
+                )
+    return done
+
+
 @dataclass
 class BoxSpec:
     center: tuple[float, float, float] | None = None

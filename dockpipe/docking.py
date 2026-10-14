@@ -11,7 +11,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .common import VinaSpec
+from .common import VinaSpec, read_checkpoint
 
 log = logging.getLogger(__name__)
 
@@ -102,27 +102,6 @@ def dock_one(task: DockTask) -> dict:
     return rec
 
 
-def read_checkpoint(path: str | Path) -> dict[str, dict]:
-    """Completed dockings from a checkpoint file, keyed by ligand stem."""
-    done: dict[str, dict] = {}
-    path = Path(path)
-    if not path.exists():
-        return done
-    with open(path, encoding="utf-8") as fh:
-        for line in fh:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                rec = json.loads(line)
-                done[rec["ligand"]] = rec
-            except (json.JSONDecodeError, KeyError):
-                # A killed job can leave a half-written final line. Everything
-                # before it is still good, so skip it rather than start over.
-                log.warning("Ignoring truncated checkpoint line in %s", path)
-    return done
-
-
 def dock_many(
     ligand_pdbqts: list[str],
     receptor_record: dict,
@@ -134,10 +113,12 @@ def dock_many(
     # A single docking costs ~30 min on this panel, so a full run lasts tens of
     # hours and will be interrupted sooner or later. Each result is appended
     # and flushed as it lands, and whatever is already recorded is not redone.
-    done = read_checkpoint(checkpoint) if checkpoint else {}
+    done = read_checkpoint(checkpoint, key="ligand") if checkpoint else {}
     if done:
-        log.info("%s: resuming, %d dockings already recorded in %s",
-                 receptor_record["name"], len(done), checkpoint)
+        bad = sum(r.get("status") != "ok" for r in done.values())
+        log.info("%s: resuming, %d dockings already recorded in %s%s",
+                 receptor_record["name"], len(done), checkpoint,
+                 f" ({bad} of them failed and are NOT retried)" if bad else "")
 
     tasks = [
         DockTask(
