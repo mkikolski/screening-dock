@@ -34,11 +34,6 @@ set -euo pipefail
 # below run run_pipeline.py, which sits at the repo root.
 PROJECT="${DOCKPIPE_PROJECT:-/storage/users/kikolski/screening-dock}"
 CONFIG="${DOCKPIPE_CONFIG:-$PROJECT/configs/panel500.yaml}"
-# Full prefix path, not a name: the env is outside conda's envs_dirs, so
-# `conda activate dockpipe` would not resolve it.
-ENV_NAME="${DOCKPIPE_ENV:-/storage/users/kikolski/envs/dockpipe}"
-# ENV_NAME may be a name in $CONDA_ROOT/envs, or an absolute prefix path if the
-# env lives in your own storage.
 CONDA_ROOT="${DOCKPIPE_CONDA_ROOT:-/opt/modules/miniforge3}"
 
 # Variables that would let the submitting shell shadow the env's own
@@ -59,6 +54,39 @@ set +eu
 export LOGNAME="${LOGNAME:-${SLURM_JOB_USER:-$(id -un)}}"
 export USER="${USER:-$LOGNAME}"
 export HOME="${HOME:-$(getent passwd "$LOGNAME" | cut -d: -f6)}"
+
+# Found rather than hardcoded: the env has lived in two different places
+# during setup, and a wrong guess here fails the job after the queue wait.
+# Always a full prefix path -- `conda activate dockpipe` only resolves names
+# inside conda's own envs_dirs, which none of these are. A real env has both
+# bin/python and conda-meta/; a half-created directory has neither, which is
+# exactly what "Not a conda environment" reports.
+if [[ -n "${DOCKPIPE_ENV:-}" ]]; then
+  ENV_CANDIDATES=("$DOCKPIPE_ENV")
+else
+  ENV_CANDIDATES=(
+    "$HOME/.conda/envs/dockpipe"
+    "/storage/users/$LOGNAME/envs/dockpipe"
+    "$CONDA_ROOT/envs/dockpipe"
+  )
+fi
+
+ENV_NAME=""
+for cand in "${ENV_CANDIDATES[@]}"; do
+  if [[ -x "$cand/bin/python" && -d "$cand/conda-meta" ]]; then
+    ENV_NAME="$cand"
+    break
+  fi
+done
+
+if [[ -z "$ENV_NAME" ]]; then
+  echo "No usable dockpipe conda env found. Tried:" >&2
+  printf '  %s\n' "${ENV_CANDIDATES[@]}" >&2
+  echo "Set DOCKPIPE_ENV=/path/to/env, or create one:" >&2
+  echo "  conda env create -p <path> -f $PROJECT/environment.yml" >&2
+  exit 1
+fi
+echo "env    : $ENV_NAME"
 
 if ! command -v module >/dev/null 2>&1; then
   for init in /etc/profile.d/lmod.sh /etc/profile.d/modules.sh \

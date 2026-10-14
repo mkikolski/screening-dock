@@ -22,14 +22,16 @@ whatis("Description: AutoDock Vina panel screening with Meeko ligand prep")
 family("conda_env")
 conflict("python_md")
 
--- conda_root is only the miniforge install; the env itself need not live under
--- it. /opt/modules is usually admin-owned, so if `conda env create` there is
--- refused, build the env in your own storage and swap env_root for the second
--- line below. Nothing else in this file changes.
+-- conda_root is only the miniforge install; the env itself does not live under
+-- it, since /opt/modules is admin-owned and `conda env create` there is
+-- refused. Change env_root below if the env moves.
 local conda_root = "/opt/modules/miniforge3"
--- The env lives on shared storage, not under miniforge3/envs or in $HOME.
-local env_root = "/storage/users/kikolski/envs"
+-- Resolved from $HOME so this does not go stale when the env moves, and so
+-- the file is not tied to one account. Override with DOCKPIPE_ENV and use
+-- run_all.slurm instead if the env lives somewhere else entirely; the slurm
+-- script probes several locations, a modulefile cannot.
 local env_name = "dockpipe"
+local env_root = pathJoin(os.getenv("HOME") or "", ".conda/envs")
 local env_path = pathJoin(env_root, env_name)
 local project_path = "/storage/users/kikolski/screening-dock"
 
