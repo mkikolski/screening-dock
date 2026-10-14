@@ -1,7 +1,11 @@
 __pycache__/
 *.pyc
 .env
-logs/
+# The directory itself has to exist in a fresh clone: sbatch opens
+# --output=logs/dockpipe_%j.log before the script runs, so a missing logs/
+# fails the job in ~1s and `mkdir -p logs` inside the script is too late.
+logs/*
+!logs/.gitkeep
 # output_root now lives inside the checkout; poses and score CSVs are outputs
 results/
 .idea/

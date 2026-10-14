@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 #SBATCH --export=NONE
 #SBATCH --job-name=dockpipe
+# Relative to the SUBMIT directory, so submit from the project root:
+#   cd /storage/users/kikolski/screening-dock && sbatch run_all.slurm
+# sbatch opens this file before the script runs, so logs/ must already
+# exist -- it ships with the repo via logs/.gitkeep.
 #SBATCH --output=logs/dockpipe_%j.log
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
