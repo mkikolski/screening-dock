@@ -35,9 +35,21 @@ ENV_NAME="${DOCKPIPE_ENV:-/storage/users/kikolski/envs/dockpipe}"
 # env lives in your own storage.
 CONDA_ROOT="${DOCKPIPE_CONDA_ROOT:-/opt/modules/miniforge3}"
 
-# --export=NONE means Lmod's shell function is not inherited either, and a
-# non-login bash does not source /etc/profile.d. Without this, `module` is
-# simply not a command inside the job.
+# --export=NONE gives the job an almost empty environment: Lmod's shell
+# function is not inherited, a non-login bash does not source /etc/profile.d,
+# and even LOGNAME/USER are unset. Lmod's own init script reads LOGNAME
+# unguarded, so under `set -u` it aborts the job -- define them first.
+# Everything that sources third-party init scripts runs with `set -u` off and
+# `set -e` relaxed: neither Lmod's init nor conda.sh/conda activate is written
+# to survive them, and a harmless unbound variable inside someone else's
+# script must not kill a 40-hour job. The identity exports go here too, since
+# getent can legitimately fail and must not abort anything.
+set +eu
+
+export LOGNAME="${LOGNAME:-${SLURM_JOB_USER:-$(id -un)}}"
+export USER="${USER:-$LOGNAME}"
+export HOME="${HOME:-$(getent passwd "$LOGNAME" | cut -d: -f6)}"
+
 if ! command -v module >/dev/null 2>&1; then
   for init in /etc/profile.d/lmod.sh /etc/profile.d/modules.sh \
               /usr/share/lmod/lmod/init/bash; do
@@ -46,13 +58,8 @@ if ! command -v module >/dev/null 2>&1; then
   done
 fi
 
-# Purge only if there is a module system; without this guard `set -e` would
-# abort the job on a host that has none, which the conda path does not need.
 if command -v module >/dev/null 2>&1; then
   module purge
-elif [[ -n "${DOCKPIPE_MODULE:-}" ]]; then
-  echo "DOCKPIPE_MODULE=$DOCKPIPE_MODULE but no module command found" >&2
-  exit 1
 fi
 
 # Two ways to get the environment. Set DOCKPIPE_MODULE to use the Lmod
@@ -61,6 +68,10 @@ fi
 # DOCKPIPE_PROJECT, but $PROJECT was resolved above, so an explicit
 # DOCKPIPE_PROJECT still wins.
 if [[ -n "${DOCKPIPE_MODULE:-}" ]]; then
+  if ! command -v module >/dev/null 2>&1; then
+    echo "DOCKPIPE_MODULE=$DOCKPIPE_MODULE but no module command found" >&2
+    exit 1
+  fi
   module use "${DOCKPIPE_MODULEPATH:-$PROJECT/modulefiles}"
   module load "$DOCKPIPE_MODULE"
 else
@@ -69,6 +80,19 @@ else
   source "$CONDA_ROOT/etc/profile.d/conda.sh"
   conda activate "$ENV_NAME"
 fi
+
+set -eu
+
+# Verify by hand what `set -e` was not watching for above. Everything after
+# this point is ours again and aborts on error as normal.
+if ! command -v python >/dev/null 2>&1; then
+  echo "No python on PATH after environment setup." >&2
+  echo "  CONDA_ROOT=$CONDA_ROOT" >&2
+  echo "  ENV_NAME=$ENV_NAME" >&2
+  echo "  CONDA_PREFIX=${CONDA_PREFIX:-<unset>}" >&2
+  exit 1
+fi
+echo "python : $(command -v python)"
 
 export PYTHONNOUSERSITE=1
 export PYTHONPATH="$PROJECT${PYTHONPATH:+:$PYTHONPATH}"
