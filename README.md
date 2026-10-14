@@ -229,68 +229,45 @@ otherwise oversubscribe the node, which is also why run_all.slurm exports
 
 ## Creating the environment
 
-The miniforge install at `/opt/modules/miniforge3` is not on `PATH` and has no
-module of its own, so `conda` has to be bootstrapped by sourcing its init
-script. That is all `run_all.slurm` needs at run time, and it is how you create
-the env once:
+The env lives inside the shared miniforge install, at
+`/opt/modules/miniforge3/envs/dockpipe`. That location matters: **`$HOME` is
+not shared with the compute nodes.** An env under `~/.conda/envs` works
+interactively on the login node and then does not exist at all inside a batch
+job, which looks like a broken env rather than a missing mount. `envs/` in the
+shared install is group-writable, so the env goes there, under its own name,
+which is where both `run_all.slurm` and the modulefile look.
 
-`envs/` there is group-writable (`drwxrwxr-x`), so the env can be created in
-place under its own name, which is where the modulefile already looks. Confirm
-you are in the owning group first — the mode only grants write to that group,
-and `other` has `r-x`:
-
-```bash
-stat -c '%A %U:%G' /opt/modules/miniforge3/envs   # note the group
-id -nG                                            # must contain it
-```
-
-If it does:
+`/opt/modules/miniforge3` is not on `PATH` and has no module of its own, so
+`conda` has to be bootstrapped by sourcing its init script. Create the env
+once, from the login node:
 
 ```bash
 source /opt/modules/miniforge3/etc/profile.d/conda.sh   # defines `conda`
-export CONDA_PKGS_DIRS=/storage/users/kikolski/conda_pkgs
-
-conda env create -f environment.yml          # -> envs/dockpipe, per `name:`
-conda activate dockpipe
+conda env create -p /opt/modules/miniforge3/envs/dockpipe -f environment.yml
 ```
 
-In practice conda fell back to `~/.conda/envs/dockpipe` rather than
-`miniforge3/envs`, which means the group write bit did not apply to this
-account. That works, but verify two things before a long job — a conda env is
-several GB, and `$HOME` is not guaranteed to be mounted on the compute nodes:
+Use `-p` with the full path rather than `-n`: `-n` writes to the first entry of
+conda's `envs_dirs`, which defaults to `~/.conda/envs` and lands you back on
+the unshared filesystem.
+
+`run_all.slurm` exports `CONDA_ENVS_PATH=/opt/modules/miniforge3/envs` and then
+activates by name, so nothing needs a prefix path at run time. Override the
+name with `DOCKPIPE_ENV` and the install with `DOCKPIPE_CONDA_ROOT` if either
+moves.
+
+If the package cache is not writable, point it somewhere that is — the
+packages run to several GB and the default `~/.conda/pkgs` is both unshared and
+usually quota'd:
 
 ```bash
-du -sh ~/.conda/envs/dockpipe        # typically 3-6 GB
-quota -s 2>/dev/null || df -h ~      # is there room
-srun -n1 -t 00:01:00 ls ~/.conda/envs/dockpipe/bin/python   # visible on a node?
+export CONDA_PKGS_DIRS=/storage/users/$USER/conda_pkgs
 ```
 
-If that `srun` fails, the env is unusable from the job and has to be rebuilt on
-shared storage:
+Verify the env is visible from a compute node before committing to a long job:
 
 ```bash
-conda env create -f environment.yml -p /storage/users/kikolski/envs/dockpipe
+srun -p standard -n1 ls /opt/modules/miniforge3/envs/dockpipe/bin/python
 ```
-
-then set `DOCKPIPE_ENV` to that path and update `env_root` in
-`modulefiles/dockpipe/phase1.lua` to match. `conda activate dockpipe` by name
-keeps working either way, because conda searches all of `envs_dirs`.
-
-`CONDA_PKGS_DIRS` is still worth setting: only `envs/` was opened up, and the
-package cache lives next to it at `miniforge3/pkgs`. Without a writable cache
-conda falls back to `~/.conda/pkgs`, and these packages run to several GB
-against a home quota that usually cannot take them.
-
-If you are *not* in that group, build the env in your own storage instead and
-pass the prefix — `DOCKPIPE_ENV` accepts either a name or a path:
-
-```bash
-conda env create -f environment.yml -p /storage/users/kikolski/envs/dockpipe
-DOCKPIPE_ENV=/storage/users/kikolski/envs/dockpipe sbatch run_all.slurm
-```
-
-In that case also update `env_root` in `modulefiles/dockpipe/phase1.lua` (there
-is a commented-out line for it) before using the module path.
 
 ## Environment via Lmod
 

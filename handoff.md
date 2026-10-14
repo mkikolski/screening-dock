@@ -4,16 +4,15 @@ State: validated and ready to submit. Nothing is pushed yet.
 
 ## Do this first
 
-Three steps. Everything else is fixed in the code.
-
 ```bash
 # 1. local
 git push
 
-# 2. cluster
+# 2. cluster -- ONE-TIME: create the env in the shared miniforge install.
+#    $HOME does not travel to the compute node, so an env under ~/.conda is
+#    unusable from a batch job even though it works interactively.
 cd /storage/users/kikolski/screening-dock && git pull
-conda install -c conda-forge openbabel   # only if `which obabel` is empty
-python test_checkpoint.py                # must print "checkpoint resume OK (both stages)"
+conda env create -p /opt/modules/miniforge3/envs/dockpipe -f environment.yml
 
 # 3. submit
 sbatch run_all.slurm
