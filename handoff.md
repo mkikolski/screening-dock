@@ -3,6 +3,42 @@
 **State: run complete, analysed.** Job 1994 finished 2026-10-18 22:44 on
 `serwer1`, commit `9770a4e`. Nothing is pending.
 
+## Summary for the supervisor
+
+Talking points, in the order they hold up to questioning. Detail and numbers
+are in the sections below.
+
+- **The screen is done and the setup is validated.** 492 of 500 molecules
+  against 5 receptors — 4 bacterial (*E. coli* DHFR, *E. coli* and *S. aureus*
+  GyrB, *S. aureus* FabI) plus human DHFR as the anti-target. 2460 dockings,
+  zero failures. Redocking recovers the native pose within 2 Å in the top 9 for
+  all five receptors; 3 of 5 also rank it first.
+- **The headline is a clean negative: 0 of 492 molecules prefer *E. coli* DHFR
+  over human DHFR.** Median −1.39 kcal/mol, and the 75th percentile is still
+  −1.07 — the whole distribution is on the wrong side. This is the one
+  cross-target comparison the data supports (same fold, same cofactor, both
+  receptors validated, identical ligands), which is what makes it quotable.
+- **The only selectivity signal is FabI, and it is weak.** 9 molecules beat
+  human DHFR by ≥0.5 kcal/mol, almost all at FabI — the receptor whose redock
+  put the native pose at rank 2 behind a 5.91 Å top pose. Best single candidate
+  is `...-00004571` (FabI, −8.68 kcal/mol, LE 0.26), still under a 0.3 ligand
+  efficiency floor.
+- **It is systematic, not a bad sampling run.** The three generator seeds are
+  statistically indistinguishable (medians −0.82 / −0.86 / −0.86, permutation
+  p=0.521).
+- **The recommendation:** the set was generated `admet_mpo_guided`, with no
+  selectivity term, and the result is what that predicts. Human DHFR needs to
+  be an explicit anti-target *inside* the generator objective. Post-hoc
+  filtering of 492 molecules produced zero survivors and will keep producing
+  zero.
+- **Cost, for planning:** 134 h on one 32-CPU node at exhaustiveness 32,
+  ~16 min per molecule across all five receptors.
+
+Worth saying out loud if asked what could be wrong: the FabI and *E. coli* GyrB
+receptors fail the strict top-pose redocking gate, so their absolute scores are
+weaker evidence than the three that pass. That does not touch the DHFR result,
+which is the one the conclusion rests on.
+
 ## Result
 
 The panel does not work as an antibacterial set, and the evidence is clean.
@@ -85,6 +121,38 @@ resubmit resumes from the last finished item rather than restarting:
 
 `python test_checkpoint.py` guards that logic; run it if you touch either
 stage.
+
+### When does anything need re-running?
+
+The commit is recorded in the job log and in every stage manifest, so this is
+a one-command answer rather than a guess:
+
+```bash
+git diff --name-only 9770a4e..HEAD -- dockpipe/ run_pipeline.py \
+    merge_results.py configs/ environment.yml
+```
+
+Non-empty means the pipeline changed and the results no longer match the code.
+Empty means they still do. Checked on 2026-10-26: only `analyze.py`,
+`check_run.sh` and `handoff.md` have changed since the run, so the 2460 results
+stand. Re-run `analyze.py` only when `analyze.py` itself changes.
+
+### Throughput, if you rescreen
+
+Point the config at a new set (`ligands_smi`, `run_name`) and
+`sbatch run_all.slurm`. Measured cost on one 32-CPU node at exhaustiveness 32:
+
+| molecules | wall time |
+|---|---|
+| 500 | 134 h (measured) |
+| 1,000 | ~11 days |
+| 2,000 | ~23 days, or ~11 sharded across both nodes |
+
+Exhaustiveness 32 does not scale past roughly 1,000 compounds here. Vina's
+default is 8; for *ranking* a library that is a defensible 4x saving, with 32
+kept for a small confirmation set. Don't raise it — pose ranking is already the
+limiting factor on two receptors and more sampling will not fix a scoring-
+function preference.
 
 ## What the run actually cost
 
@@ -197,6 +265,11 @@ harmless. Per-receptor reports are in
 - GyrB `keep_hetatms: []` — the 2 MG in 3U2D were never confirmed to sit
   outside the pyrrolamide site. 3U2D redocks at 0.53 Å without them, so this is
   not urgent.
+- **If FabI becomes the focus, validate that receptor first.** It is where the
+  only selectivity signal is, and it is also the receptor whose pose ranking is
+  least reliable (native pose at rank 2, 5.91 Å top pose). Building a campaign
+  on `...-00004571` without resolving that is building on the weakest part of
+  the panel.
 - The 8 `scrub_failed` molecules are listed in
   `results/panel500_v1/manifests/ligands.json` under `failures`, if the
   denominator ever needs defending.
