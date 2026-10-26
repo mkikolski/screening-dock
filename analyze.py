@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from dockpipe.common import PipelineConfig
@@ -172,6 +173,41 @@ def main() -> None:
         tops.append(out)
         print(f"\n  {rec}")
         print(grp.to_string(index=False, float_format=lambda v: f"{v:.3f}"))
+
+    # ---- 5. per generator seed ------------------------------------------
+    seeds = per_mol.index.to_series().str.extract(r"seed-(\d+)", expand=False)
+    if seeds.notna().any():
+        per_mol["seed"] = seeds.values
+        print("\n--- Per generator seed ---")
+        print(f"  {'seed':<6}{'n':>5}{'margin med':>12}{'margin IQR':>18}"
+              f"{'>0':>5}{'LE med':>9}{'LE max':>9}")
+        for sd, g in per_mol.groupby("seed"):
+            m = g["margin_vs_human"].dropna()
+            l = g["le_at_best_bacterial"].dropna()
+            iqr = f"{m.quantile(.25):+.2f}..{m.quantile(.75):+.2f}"
+            print(f"  {sd:<6}{len(g):>5}{m.median():>+12.2f}{iqr:>18}"
+                  f"{(m > 0).sum():>5}{l.median():>9.2f}{l.max():>9.2f}")
+
+        # Is the best-vs-worst seed gap real or sampling noise? Permutation
+        # test on the median difference. numpy only: scipy is not a declared
+        # dependency of this project, so it must not be relied on here.
+        meds = per_mol.groupby("seed")["margin_vs_human"].median().sort_values()
+        if len(meds) > 1:
+            hi, lo = meds.index[-1], meds.index[0]
+            a = per_mol.loc[per_mol["seed"] == hi, "margin_vs_human"].dropna().to_numpy()
+            b = per_mol.loc[per_mol["seed"] == lo, "margin_vs_human"].dropna().to_numpy()
+            obs = float(np.median(a) - np.median(b))
+            pool = np.concatenate([a, b])
+            rng = np.random.default_rng(0)
+            n_a, n_shuf = len(a), 10000
+            gaps = np.empty(n_shuf)
+            for i in range(n_shuf):
+                q = rng.permutation(pool)
+                gaps[i] = np.median(q[:n_a]) - np.median(q[n_a:])
+            pval = float((np.abs(gaps) >= abs(obs)).mean())
+            verdict = "distinguishable" if pval < 0.05 else "NOT distinguishable"
+            print(f"  seed {hi} vs seed {lo}: median gap {obs:+.2f} kcal/mol, "
+                  f"permutation p={pval:.3f} ({n_shuf} shuffles) -> {verdict}")
 
     # ---- write-out -------------------------------------------------------
     per_mol.sort_values("margin_vs_human", ascending=False).to_csv(
