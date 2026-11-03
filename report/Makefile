@@ -32,7 +32,7 @@ venv:
 	@echo 'created .venv; make will now use it'
 
 check: summary.pdf
-	@echo "--- pages (expect 2-4) ---"
+	@echo "--- pages (expect 6-9) ---"
 	@pdfinfo summary.pdf | grep -i '^Pages'
 	@echo "--- overfull boxes / warnings ---"
 	@grep -c -e Overfull -e Underfull summary.log || echo 0

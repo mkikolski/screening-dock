@@ -25,49 +25,33 @@ cd report && make venv && make      # make venv once: system python3 lacks panda
 Confirm it is real data, not the fixture: the near-miss table must show **9**
 rows and the selectivity table **0 / 492**. The fixture gives 7 and 8.
 
-### 2. FabL, if the isoform argument matters (~27 h, unattended)
-
-`target_choice.md` §4.4 lists FabL as priority 4, and §5's FabI+FabL
-cross-isoform comparison is the stated justification for including FabI at
-all — but FabL was never docked, so that argument has no data behind it.
-
-Residue names verified against the entry (192 NDP atoms / 4 chains = 48 each,
-68 TCL / 4 = 17 each, 1.80 Å, tetramer A–D). Add to `configs/panel500.yaml`:
-
-```yaml
-  - name: fabl_bsubtilis_3oid
-    pdb_id: 3OID
-    keep_chains: [A]
-    keep_hetatms: [NDP] # verified NDP in this entry: 48 atoms/chain
-    redock_ligand_resname: TCL # verified: triclosan, 17 atoms
-    ph: 7.4
-    notes: >
-      B. subtilis FabL, the triclosan-resistance isoform. Reversibly
-      inhibited, unlike FabI's slow-binding ternary complex, so ordinary
-      docking occupancy is the right model. 1.80 A, R-free 0.181 --
-      highest-quality structure in the panel. Tetramer A-D; chain A only.
-    box:
-      reference_ligand_resname: TCL
-      size: [22.0, 22.0, 22.0]
-```
-
-```bash
-python preflight.py --config configs/panel500.yaml   # catches a wrong resname
-sbatch run_all.slurm
-```
-
-No special-casing needed. `prep-ligands` finds all 492 recorded and returns
-instantly, the five existing receptors report "already complete, nothing to
-dock", and only FabL's 492 dockings run. Then re-pull and `make` — the report's
-title, receptor count and target list are all generated, so nothing goes stale.
-
-### 3. LLE, optional (~15 min of work)
+### 2. LLE, optional (~15 min of work)
 
 `target_choice.md` §7 asks for triage by LE **and** LLE; only LE exists.
 RDKit's Crippen estimator gives logP from the SMILES already in
 `scores_by_ligand.csv`, so no new data is needed — but LLE is properly defined
 against *measured* potency, and substituting a docking score makes it a
 rescaled LE rather than a true LLE. Label it as such if it gets added.
+
+## FabL: dropped, deliberately (2026-11-03)
+
+FabL (3OID) was planned as priority 4 and is **not being run**. It is written
+up in `report/summary.tex` §"A possible extension: FabL" with the reasons it
+would be worth adding, and that is where it stays.
+
+Why it is still worth describing rather than deleting: FabL is the triclosan
+*resistance* determinant in *B. subtilis* (`fabL` knockouts ~250-fold more
+sensitive, `fabI` knockouts not), it is inhibited reversibly rather than
+through FabI's slow-binding ternary complex, so plain docking occupancy is
+actually the right model for it, and FabI-against-FabL would be the same
+cross-isoform question that the DHFR pair asks about host selectivity. 3OID at
+1.80 A is also the best structure in the candidate set.
+
+If it is ever run, the verified config block is in git history at `521b97d`
+(`handoff.md` step 2): chain A, `keep_hetatms: [NDP]` (48 atoms/chain), redock
+on TCL (17 atoms/chain), 22 A box. Checkpointing means it is a plain
+`sbatch run_all.slurm` — the five existing receptors report "already complete"
+and only FabL's 492 dockings run, about 27 h.
 
 ## The report
 
@@ -104,8 +88,12 @@ Reading the target rationale against the results changed what the report says:
   §4.1's GyrB bridging-water pitfall was tested (3U2D redocks at 0.53 Å with
   its four waters excluded).
 - **Still outstanding by the document's own criteria:** no actives-vs-decoys
-  enrichment test (ROC AUC, EF1%, BEDROC), so all targets remain provisional;
-  FabL not docked.
+  enrichment test (ROC AUC, EF1%, BEDROC), so all targets remain provisional.
+  FabL is no longer outstanding; it is dropped (see above).
+- **7MYM is 3.04 A**, failing §3's ≤ 2.5 A criterion — §8's resolution column
+  was "—" pending the check, and the check was never done before the run. It
+  redocks at 0.89 A ranked first, so the site is fine, but swap it for a
+  higher-resolution E. coli DHFR:TMP:NADPH entry on any re-run.
 
 ## Summary for the supervisor
 
@@ -380,8 +368,11 @@ harmless. Per-receptor reports are in
   least reliable (native pose at rank 2, 5.91 Å top pose). Building a campaign
   on `...-00004571` without resolving that is building on the weakest part of
   the panel.
-- FabL and the enrichment test are in **Next steps**, not here: both are
-  preconditions the project set for itself, not optional extras.
+- The enrichment test (actives vs decoys) is a precondition the project set
+  for itself and has not been run, so every target is formally provisional.
+  FabL is dropped, not pending — if asked, the answer is that the isoform
+  argument is described in the report as an extension and FabI stands on
+  triclosan and afabicin instead.
 - The 8 `scrub_failed` molecules are listed in
   `results/panel500_v1/manifests/ligands.json` under `failures`, if the
   denominator ever needs defending.

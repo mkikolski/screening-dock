@@ -68,7 +68,195 @@ single receptor (\S\ref{sec:nearmiss}).
 The pattern is the same across all \nSeeds{} generator seeds
 (\S\ref{sec:seeds}), so it does not come from one sampling run.
 
+\section{Target selection}
+\label{sec:targets}
+
+This section is editorial rather than measured: it records why these
+\nReceptors{} receptors were chosen, so the choice can be defended
+independently of what the scores turned out to be. No target was defined
+before generation, so the selection is retrospective by construction.
+
+\subsection{What the panel allows}
+
+Three properties of the panel constrain which sites can honestly be docked
+into.
+
+\emph{Nitrogen-rich, but not amine-guaranteed.} The generator filtered on
+\emph{total} nitrogen count, which counts amide, nitrile and non-basic
+aromatic nitrogen. It does not establish the ionisable, preferably primary
+amine that the eNTRy rules identify as necessary for accumulation in
+Gram-negative bacteria, alongside low globularity and few rotatable
+bonds~\cite{richter2017}. Sites were therefore preferred where
+\emph{aromatic and heterocyclic} nitrogen is itself the recognition element,
+rather than sites that read a cation.
+
+\emph{Small and synthesisable.} Sites whose validated ligands are large
+lipophilic macrocycles binding shallow surfaces that refold on binding --- the
+RNA polymerase switch region --- or charged phosphonate and nucleotide mimics
+--- MurA--F, DXR/MEP --- are a poor match for the panel's property space.
+
+\emph{Non-covalent, no metal centre.} Vina is a non-covalent empirical
+function with no explicit electrostatic term, so covalent mechanisms
+($\beta$-lactams at PBPs, fosfomycin at MurA, benzoxaboroles at tRNA
+synthetases) and zinc-chelating hydroxamate chemistry (LpxC, peptide
+deformylase) cannot be modelled honestly, whatever score they would
+return. Table~\ref{tab:rejected} lists what this excluded.
+
+\subsection{Structure selection}
+
+Target choice and structure choice are separate decisions. Every entry in
+Table~\ref{tab:structures} is \textbf{holo}, with a drug-like co-crystal
+ligand in the pocket: apo structures present side chains and loops in a
+conformation that is not binding-competent, and docking enrichment degrades
+measurably against them~\cite{mcgovern2003}. Cofactors are retained rather
+than stripped, because in both DHFR structures and in FabI the cofactor forms
+part of the pocket wall --- trimethoprim binding to DHFR is NADPH-cooperative,
+and triclosan stacks directly on the nicotinamide ring. Removing it would
+leave a larger, emptier, physically wrong site. Redocking each entry's own
+co-crystal ligand is the gate on all of this
+(\S\ref{sec:methods}); it is also the only check that catches a cofactor or
+ligand residue name mis-set in the configuration, which otherwise fails
+silently.
+
+\begin{table}[tb]
+\centering
+\caption{The structures docked, and the published source of each. 2W3A has no
+primary publication; it is cited as a PDB deposition. Resolutions are as
+reported by the RCSB entry.}
+\label{tab:structures}
+\small
+\begin{tabular}{llcll}
+\toprule
+role in the panel & structure & res.\ / \AA & co-crystal ligand & source \\
+\midrule
+GyrB ATP site, Gram-positive & 3U2D \textit{S.\,aureus} & 1.85 &
+pyrrolamide & \cite{eakin2012} \\
+GyrB ATP site, Gram-negative & 4ZVI \textit{E.\,coli} & 2.20 &
+\textit{N}-phenylpyrrolamide & \cite{zidar2015} \\
+DHFR, bacterial & 7MYM \textit{E.\,coli} & 3.04 &
+trimethoprim $+$ NADPH & \cite{krucinska2022} \\
+DHFR, host counter-screen & 2W3A human & 1.50 &
+trimethoprim $+$ NADPH & \cite{pdb2w3a} \\
+FabI, Gram-positive pathogen & 3GR6 \textit{S.\,aureus} & 2.28 &
+triclosan $+$ NADP & \cite{priyadarshi2010} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{GyrB ATP site --- the broad-spectrum anchor}
+
+The GyrB/ParE ATPase site is the most thoroughly worked unexploited
+antibacterial site in the literature: novobiocin reached the clinic and was
+withdrawn, and more than fifty years of pyrrolamide, aminobenzimidazole,
+azaindole and pyridylurea programmes have followed without a registered
+drug~\cite{bisacchi2015}. The domain is conserved across Gram-positives and
+Gram-negatives and dual GyrB/ParE inhibition is an active strategy, which is
+what makes it the broad-spectrum anchor here.
+
+It is also the best \emph{chemical} match in the panel. Recognition runs
+through a hydrogen bond to Asp73 (\textit{E.\,coli} numbering), frequently
+bridged by a conserved structural water, donated by pyrrole NH and aromatic
+nitrogen --- no cationic amine is required, which matters because the panel
+cannot guarantee one. Both orthologues are included so that compatibility at
+the fold can be separated from compatibility with one species' pocket.
+
+The known pitfall is that several ligand series recruit that bridging water,
+and omitting it deletes a real hydrogen-bond partner. This was tested rather
+than assumed: 3U2D has four ordered waters within 3.5~\AA{} of the ligand, the
+closest at 2.72~\AA, and with all of them excluded it still redocks at
+0.53~\AA. 4ZVI has only a marginal 3.33~\AA{} contact. For these two entries
+the water was not required.
+
+\subsection{The DHFR orthologue pair --- the selectivity axis}
+
+DHFR carries the only selectivity comparison available without a wet lab.
+Trimethoprim discriminates the bacterial from the human enzyme by roughly
+three to four orders of magnitude, an effect amplified by cooperative binding
+with NADPH~\cite{wrobel2020}. That makes the orthologue pair a controlled
+comparison in the sense docking can actually support: the same ligands, the
+same fold, the same cofactor, and two receptors that differ in the pocket
+rather than in everything at once. A score difference between unrelated folds
+confounds the comparison with Vina's own calibration; a score difference
+between two DHFRs does not.
+
+The recognition motif suits the panel as well as GyrB does. The
+2,4-diaminopyrimidine head group that engages the conserved Asp27 is
+intrinsically nitrogen-rich, which is the closest correspondence in the whole
+set between the generator's design heuristic and a validated pocket. This is
+why the \selDhfrN{}/\nMolecules{} result in \S\ref{sec:result} is reported as
+the headline rather than the cross-fold comparison: it is the test the panel
+was best placed to pass.
+
+\subsection{FabI --- the pathogen-relevant arm}
+
+FabI, enoyl-ACP reductase, is the Gram-positive pathogen target of the set.
+Triclosan is the tool compound, and afabicin (Debio 1450) has reached phase 2
+trials against \textit{S.\,aureus}, including bone and joint infection
+(NCT03723551) --- the most clinically advanced target here. Flat
+nitrogen-containing aromatics stack against the NADP nicotinamide with a
+hydrogen bond to Tyr156, which is compatible with the panel's heteroaromatic
+content. Only ternary holo structures are usable, because the
+substrate-binding loop is disordered otherwise.
+
+Its weakness is stated rather than left for review. Whether type-II fatty acid
+synthesis is a viable antibacterial target in Gram-positive pathogens is
+contested: Brinster \textit{et al.}\ argued that these organisms bypass FAS-II
+inhibition by scavenging host fatty acids~\cite{brinster2009}, and the
+rebuttals --- including evidence that the result does not generalise to
+\textit{S.\,aureus} --- leave the question
+open~\cite{parsons2011}. This bears directly on the results below, because the
+margins in \S\ref{sec:nearmiss} fall almost entirely on FabI.
+
+\begin{table}[tb]
+\centering
+\caption{Targets considered and excluded, with the reason in each case. The
+first three rows are excluded by the method, not by the biology.}
+\label{tab:rejected}
+\small
+\begin{tabular}{p{0.24\linewidth}p{0.66\linewidth}}
+\toprule
+target & reason for exclusion \\
+\midrule
+PBP2a/PBP3 & $\beta$-lactam mechanism is covalent; non-covalent docking would
+be misleading \\
+MurA--MurF & large, polar, often charged nucleotide and UDP-sugar sites;
+MurA inhibition by fosfomycin is covalent \\
+LpxC, peptide deformylase & metalloenzymes whose potent inhibitors are
+chelating hydroxamates; Vina has no explicit electrostatic term and mishandles
+metal coordination \\
+RNA polymerase switch region & large lipophilic macrocycles on a shallow
+surface that locally refolds on binding \\
+LptD/LptA, LolE & compelling biology, but identified phenotypically rather
+than structurally; no clean high-resolution small-molecule pocket \\
+tRNA synthetases & benzoxaborole mechanism is covalent and tRNA-dependent \\
+DXR/MEP, UPPS, riboswitches & charged phosphonate sites, RNA targets, or thin
+structural support \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{A possible extension: FabL}
+
+One target was planned and not run. \textit{B.\,subtilis} FabL is not a FabI
+variant: the two enzymes coexist in that organism, differ in cofactor (NADPH
+against NADH) and share only around 24\% sequence identity, FabL being closer
+to FabG and the wider SDR family while arriving at the same
+Tyr-(Xaa)$_6$-Lys dyad~\cite{kim2011}. It is also the resistance determinant
+--- \textit{fabI} knockouts are as triclosan-sensitive as wild type, while
+\textit{fabL} knockouts are some 250-fold more
+sensitive~\cite{heath2000}. Two things would make it worth adding. It is
+unusually tractable for docking, because triclosan inhibits FabI through a
+slow-binding, effectively mechanism-based ternary complex, whereas FabL is
+inhibited reversibly, and ordinary reversible occupancy is what a scoring
+function can represent. And FabI against FabL would give a cross-isoform
+compatibility profile --- structurally the same question as the DHFR pair
+above, but about antibacterial spectrum rather than host selectivity. The
+highest-quality structure in the whole candidate set, 3OID at 1.80~\AA,
+is available for it. It is an extension for comparison, not a gap in the
+present result: nothing reported here depends on it.
+
 \section{Result}
+\label{sec:result}
 
 \subsection{Selectivity against human DHFR}
 
@@ -111,7 +299,8 @@ every bacterial target in the panel.}
 The strongest ligand efficiency in the panel is \leBest{} at
 \leBestTarget; among the bacterial targets the best is \leBestBacterial{} at
 \leBestBacterialTarget. Both come from the smallest molecule in the set.
-Taking \leFloor{} as a conventional floor for a hit worth progressing, no
+Taking \leFloor{} as a conventional floor~\cite{hopkins2004} for a hit
+worth progressing, no
 molecule combines that efficiency with a preference for a bacterial target.
 
 Vina scores are often inflated for larger ligands, which would distort a
@@ -172,13 +361,14 @@ abbreviated to seed/serial; full names are in the result CSVs.}
 \end{table}
 
 \section{Methods and validation}
+\label{sec:methods}
 
 Ligands were enumerated to protonation states and 3D conformers with molscrub
 at pH 7.4 and typed with Meeko. Receptors were taken from the RCSB entries in
 Table~\ref{tab:receptors}, reduced to a single chain, protonated with PDBFixer
 at pH 7.4 and typed with Meeko. Cofactors (NADP$^+$ in the two DHFR structures
 and in FabI) were prepared separately and appended as rigid atoms, because
-Meeko carries no residue template for them. Docking used AutoDock Vina 1.2
+Meeko carries no residue template for them. Docking used AutoDock Vina 1.2~\cite{vina2021}
 through its Python API at exhaustiveness 32, nine retained poses, seed 2137,
 with boxes of 20--22~\AA{} centred on each entry's co-crystal ligand.
 
@@ -200,26 +390,6 @@ position in Vina's ordering.}
 \input{tables/receptors}
 \end{table}
 
-\begin{table}[tb]
-\centering
-\caption{What each receptor was included to test. This is editorial rationale
-rather than measured output, so unlike every other table here it is written
-inline rather than generated.}
-\small
-\begin{tabular}{ll}
-\toprule
-receptor & question it addresses \\
-\midrule
-GyrB (two species) & compatibility with a broad-spectrum, clinically
-validated ATP site \\
-DHFR \textit{E.\,coli} + human & can any scaffold discriminate bacterial
-from host enzyme \\
-FabI \textit{S.\,aureus} & engagement of a pathogen-relevant, clinically
-advanced target \\
-\bottomrule
-\end{tabular}
-\end{table}
-
 \section{Scope of the conclusion}
 \label{sec:scope}
 
@@ -234,9 +404,15 @@ not for comparing absolute affinities between unrelated sites.
 not place the crystal pose first, so their scores carry less weight than the
 other three. The margins in \S\ref{sec:nearmiss} fall almost entirely on
 FabI.
-\item A fourth planned target, FabL \textit{B.\,subtilis} (3OID), was not
-docked. The FabI/FabL cross-isoform comparison that motivates including FabI is
-therefore not addressed by this data.
+\item 7MYM, which carries the headline comparison, is the lowest-resolution
+entry in the panel at 3.04~\AA, against 1.50~\AA{} for its human counterpart.
+It recovers its own co-crystal pose at 0.89~\AA{} and ranks it first, so the
+site is modelled adequately, but a higher-resolution \textit{E.\,coli}
+DHFR:trimethoprim:NADPH entry would be the first thing to substitute on a
+re-run.
+\item FabL \textit{B.\,subtilis} (3OID) was planned and not docked
+(\S\ref{sec:targets}). Nothing above depends on it; it would add a
+cross-isoform comparison, not close a gap.
 \item No actives-versus-decoys enrichment test (ROC AUC, EF1\%, BEDROC) has
 been run, so by the project's own selection criteria every target here remains
 provisional.
@@ -245,9 +421,83 @@ Gram-positive pathogens is contested in the literature. That bears directly on
 the FabI results, which carry most of the margins reported above.
 \item \nScrubFailed{} of \nInput{} molecules failed ligand preparation and are
 absent from every figure here.
-\item Vina scores are a ranking device, not predicted binding free energies,
-and no experimental measurement is involved at any point.
+\item Vina scores are a ranking device, not predicted binding free
+energies: correlation with measured affinity is weak across docking programs
+and scoring functions~\cite{warren2006}, and no experimental measurement is
+involved at any point.
 \end{itemize}
+
+\begin{thebibliography}{99}
+\small
+\bibitem{eakin2012} Eakin A.E. \textit{et al.} Pyrrolamide DNA gyrase
+inhibitors: fragment-based NMR screening to identify antibacterial agents.
+\textit{Antimicrob.\ Agents Chemother.} \textbf{56} (2012) 1240. PDB 3U2D.
+
+\bibitem{zidar2015} Zidar N. \textit{et al.}
+\textit{N}-Phenyl-4,5-dibromopyrrolamides and \textit{N}-phenylindolamides as
+ATP-competitive DNA gyrase B inhibitors. \textit{J.\ Med.\ Chem.}
+\textbf{58} (2015) 6179. PDB 4ZVI.
+
+\bibitem{krucinska2022} Krucinska J. \textit{et al.} Structure-guided
+functional studies of plasmid-encoded dihydrofolate reductases reveal a common
+mechanism of trimethoprim resistance in Gram-negative pathogens.
+\textit{Commun.\ Biol.} \textbf{5} (2022) 459. PDB 7MYM.
+
+\bibitem{pdb2w3a} PDB 2W3A, human dihydrofolate reductase in complex with
+NADPH and trimethoprim, 1.50~\AA. Deposited 2008; no primary publication.
+
+\bibitem{priyadarshi2010} Priyadarshi A., Kim E.E., Hwang K.Y. Structural
+insights into \textit{Staphylococcus aureus} enoyl-ACP reductase (FabI) in
+complex with NADP and triclosan. \textit{Proteins} \textbf{78} (2010) 480.
+PDB 3GR6.
+
+\bibitem{bisacchi2015} Bisacchi G.S., Manchester J.I. A new-class
+antibacterial --- almost. Lessons in drug discovery and development: a
+critical analysis of more than 50 years of effort toward ATPase inhibitors of
+DNA gyrase and topoisomerase IV. \textit{ACS Infect.\ Dis.} \textbf{1} (2015)
+4.
+
+\bibitem{wrobel2020} Wróbel A., Arciszewska K., Maliszewski D., Drozdowska D.
+Trimethoprim and other nonclassical antifolates: an excellent template for
+searching modifications of dihydrofolate reductase enzyme inhibitors.
+\textit{J.\ Antibiot.} \textbf{73} (2020) 5. doi:10.1038/s41429-019-0240-6.
+
+\bibitem{brinster2009} Brinster S. \textit{et al.} Type II fatty acid
+synthesis is not a suitable antibacterial target for Gram-positive pathogens.
+\textit{Nature} \textbf{458} (2009) 83.
+
+\bibitem{parsons2011} Parsons J.B., Rock C.O. Is bacterial fatty acid
+synthesis a valid target for antibacterial drug discovery?
+\textit{Curr.\ Opin.\ Microbiol.} \textbf{14} (2011) 544.
+
+\bibitem{kim2011} Kim K.-H. \textit{et al.} Crystal structures of enoyl-ACP
+reductases I (FabI) and III (FabL) from \textit{Bacillus subtilis}.
+\textit{J.\ Mol.\ Biol.} (2011). doi:10.1016/j.jmb.2010.12.003. PDB 3OID.
+
+\bibitem{heath2000} Heath R.J. \textit{et al.} The
+enoyl-[acyl-carrier-protein] reductases FabI and FabL from \textit{Bacillus
+subtilis}. \textit{J.\ Biol.\ Chem.} \textbf{275} (2000) 40128.
+
+\bibitem{richter2017} Richter M.F. \textit{et al.} Predictive compound
+accumulation rules yield a broad-spectrum antibiotic. \textit{Nature}
+\textbf{545} (2017) 299.
+
+\bibitem{mcgovern2003} McGovern S.L., Shoichet B.K. Information decay in
+molecular docking screens against holo, apo, and modeled conformations of
+enzymes. \textit{J.\ Med.\ Chem.} \textbf{46} (2003) 2895.
+
+\bibitem{vina2021} Eberhardt J., Santos-Martins D., Tillack A.F., Forli S.
+AutoDock Vina 1.2.0: new docking methods, expanded force field, and Python
+bindings. \textit{J.\ Chem.\ Inf.\ Model.} \textbf{61} (2021) 3891.
+
+\bibitem{hopkins2004} Hopkins A.L., Groom C.R., Alex A. Ligand efficiency: a
+useful metric for lead selection. \textit{Drug Discov.\ Today} \textbf{9}
+(2004) 430.
+
+\bibitem{warren2006} Warren G.L. \textit{et al.} A critical assessment of
+docking programs and scoring functions. \textit{J.\ Med.\ Chem.} \textbf{49}
+(2006) 5912.
+\end{thebibliography}
 
 \appendix
 \section{Provenance}

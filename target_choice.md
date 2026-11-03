@@ -292,7 +292,7 @@ These should appear in the manuscript, not be left for review to surface.
 | 2 | DHFR (*E. coli*) | 7MYM | — | NADPH | Nitrogen-motif match |
 | 2b | DHFR (human) | 2W3A | 1.50 Å | NADPH | Selectivity counter-screen |
 | 3 | FabI (*S. aureus*) | 3GR6 | — | NADP | Gram-positive pathogen |
-| 4 | FabL (*B. subtilis*) | **3OID** | **1.80 Å** | NADPH | Resistance isoform |
+| — | FabL (*B. subtilis*) | 3OID | 1.80 Å | NADPH | Resistance isoform — *dropped, see §8* |
 | opt. | FabK | TBD | — | FMN | Fold-orthogonal ENR |
 
 All selections are provisional until each passes the redocking gate at ≤ 2.0 Å
@@ -309,12 +309,21 @@ control are dropped rather than carried forward with a caveat.**
 | DHFR 7MYM | 0.89 Å | 1 | pass |
 | DHFR 2W3A | 0.40 Å | 1 | pass |
 | FabI 3GR6 | 1.71 Å | 2 | pass |
-| FabL 3OID | — | — | **not run** |
+| FabL 3OID | — | — | **not run, dropped** |
 
-- **FabL was not docked.** The §5 FabI+FabL cross-isoform rationale is therefore
-  unsupported by data so far, and §5 is the stated justification for including
-  FabI at all. Either run 3OID (≈ 27 h for 492 molecules on one node at the
-  measured rate) or drop the isoform argument.
+- **FabL was not docked, and is not planned (decided 2026-11-03).** The §5
+  FabI+FabL cross-isoform rationale therefore has no data behind it. §4.4 and §5
+  are kept as written because the rationale is still sound and the structure is
+  still the best in the candidate set; they describe a possible extension, not
+  work in progress. FabI's inclusion now rests on its own merits — triclosan,
+  afabicin in phase 2 — not on the isoform comparison. The report states this
+  explicitly rather than leaving §5 reading as though both halves had been run.
+- **7MYM is 3.04 Å**, which fails the ≤ 2.5 Å criterion in §3. It was not
+  checked against the entry before the run (§8's resolution column was left as
+  "—" pending exactly that check). It redocks at 0.89 Å ranked first, so the
+  site is modelled adequately, but a higher-resolution *E. coli*
+  DHFR:TMP:NADPH entry should replace it on any re-run. Verified resolutions
+  for the rest: 3U2D 1.85, 4ZVI 2.20, 2W3A 1.50, 3GR6 2.28 Å.
 - **The enrichment test has not been run.** By the criterion above, all five
   targets remain provisional.
 
