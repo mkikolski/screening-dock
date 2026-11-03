@@ -44,6 +44,13 @@ FabI \textit{S.\,aureus}) and human DHFR as a counter-screen.
 \nScrubFailed{} molecules were lost during ligand preparation, leaving
 \nMolecules{} molecules and \nDockings{} dockings, all of which completed.
 
+The panel was not designed against these targets. It was produced by a
+target-agnostic generative pipeline under an ADMET surrogate reward, and the
+receptors were selected retrospectively, to ask whether the set is chemically
+and geometrically compatible with validated antibacterial sites. Nothing below
+is a prediction of activity, and no experimental measurement is involved at any
+point.
+
 Against the counter-screen the set is not selective. Comparing the two DHFR
 orthologues directly --- the same fold with the same cofactor, both receptors
 validated by redocking --- \textbf{\selDhfrN{} of \nMolecules{} molecules
@@ -178,9 +185,11 @@ with boxes of 20--22~\AA{} centred on each entry's co-crystal ligand.
 
 Each receptor was validated by redocking its own co-crystal ligand, with bond
 orders taken from the chemical component's idealised structure rather than
-perceived from coordinates. \nRedockPass{} of \nRedockTotal{} receptors place
-the crystal pose first within \redockThreshold~\AA; all \nRedockTotal{}
-recover it somewhere in the nine retained poses.
+perceived from coordinates. The gate is recovery of the crystal pose within
+\redockThreshold~\AA{} among the nine retained poses, which all
+\nRedockTotal{} receptors pass. The rank at which that pose appears is
+reported separately, as a per-receptor confidence weight rather than a
+pass/fail criterion: \nRedockPass{} of \nRedockTotal{} also place it first.
 
 \begin{table}[tb]
 \centering
@@ -190,6 +199,26 @@ position in Vina's ordering.}
 \label{tab:receptors}
 \small
 \input{tables/receptors}
+\end{table}
+
+\begin{table}[tb]
+\centering
+\caption{What each receptor was included to test. This is editorial rationale
+rather than measured output, so unlike every other table here it is written
+inline rather than generated.}
+\small
+\begin{tabular}{ll}
+\toprule
+receptor & question it addresses \\
+\midrule
+GyrB (two species) & compatibility with a broad-spectrum, clinically
+validated ATP site \\
+DHFR \textit{E.\,coli} + human & can any scaffold discriminate bacterial
+from host enzyme \\
+FabI \textit{S.\,aureus} & engagement of a pathogen-relevant, clinically
+advanced target \\
+\bottomrule
+\end{tabular}
 \end{table}
 
 \section{Scope of the conclusion}
@@ -206,6 +235,15 @@ not for comparing absolute affinities between unrelated sites.
 not place the crystal pose first, so their scores carry less weight than the
 other three. The margins in \S\ref{sec:nearmiss} fall almost entirely on
 FabI.
+\item A fourth planned target, FabL \textit{B.\,subtilis} (3OID), was not
+docked. The FabI/FabL cross-isoform comparison that motivates including FabI is
+therefore not addressed by this data.
+\item No actives-versus-decoys enrichment test (ROC AUC, EF1\%, BEDROC) has
+been run, so by the project's own selection criteria every target here remains
+provisional.
+\item Whether type-II fatty acid synthesis is a viable target in
+Gram-positive pathogens is contested in the literature. That bears directly on
+the FabI results, which carry most of the margins reported above.
 \item \nScrubFailed{} of \nInput{} molecules failed ligand preparation and are
 absent from every figure here.
 \item Vina scores are a ranking device, not predicted binding free energies,
