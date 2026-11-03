@@ -71,15 +71,15 @@ The pattern is the same across all \nSeeds{} generator seeds
 \section{Target selection}
 \label{sec:targets}
 
-This section is editorial rather than measured: it records why these
-\nReceptors{} receptors were chosen, so the choice can be defended
-independently of what the scores turned out to be. No target was defined
-before generation, so the selection is retrospective by construction.
+Unlike the rest of this document, nothing in this section is generated
+from the run: it records why these \nReceptors{} receptors were chosen. No
+target was defined before generation, so the selection is retrospective, and
+the criteria below were applied to structures rather than to results.
 
 \subsection{What the panel allows}
 
-Three properties of the panel constrain which sites can honestly be docked
-into.
+Three properties of the panel constrain which sites it can be docked
+into at all.
 
 \emph{Nitrogen-rich, but not amine-guaranteed.} The generator filtered on
 \emph{total} nitrogen count, which counts amide, nitrile and non-basic
@@ -145,15 +145,14 @@ triclosan $+$ NADP & \cite{priyadarshi2010} \\
 
 \subsection{GyrB ATP site --- the broad-spectrum anchor}
 
-The GyrB/ParE ATPase site is the most thoroughly worked unexploited
-antibacterial site in the literature: novobiocin reached the clinic and was
-withdrawn, and more than fifty years of pyrrolamide, aminobenzimidazole,
-azaindole and pyridylurea programmes have followed without a registered
-drug~\cite{bisacchi2015}. The domain is conserved across Gram-positives and
+The GyrB/ParE ATPase site has been worked hard and has never yielded a
+drug: novobiocin reached the clinic and was withdrawn, and more than fifty
+years of pyrrolamide, aminobenzimidazole, azaindole and pyridylurea programmes
+have followed without a registered one~\cite{bisacchi2015}. The domain is conserved across Gram-positives and
 Gram-negatives and dual GyrB/ParE inhibition is an active strategy, which is
 what makes it the broad-spectrum anchor here.
 
-It is also the best \emph{chemical} match in the panel. Recognition runs
+It also suits the panel's chemistry. Recognition runs
 through a hydrogen bond to Asp73 (\textit{E.\,coli} numbering), frequently
 bridged by a conserved structural water, donated by pyrrole NH and aromatic
 nitrogen --- no cationic amine is required, which matters because the panel
@@ -179,26 +178,27 @@ rather than in everything at once. A score difference between unrelated folds
 confounds the comparison with Vina's own calibration; a score difference
 between two DHFRs does not.
 
-The recognition motif suits the panel as well as GyrB does. The
+The recognition motif suits the panel too, and more specifically than
+GyrB's does. Where GyrB reads aromatic nitrogen as a hydrogen-bond donor, the
 2,4-diaminopyrimidine head group that engages the conserved Asp27 is
-intrinsically nitrogen-rich, which is the closest correspondence in the whole
-set between the generator's design heuristic and a validated pocket. This is
+nitrogen-rich in the way the generator's filter selected for. This is
 why the \selDhfrN{}/\nMolecules{} result in \S\ref{sec:result} is reported as
 the headline rather than the cross-fold comparison: it is the test the panel
 was best placed to pass.
 
-\subsection{FabI --- the pathogen-relevant arm}
+\subsection{FabI --- a third pathway}
 
-FabI, enoyl-ACP reductase, is the Gram-positive pathogen target of the set.
-Triclosan is the tool compound, and afabicin (Debio 1450) has reached phase 2
-trials against \textit{S.\,aureus}, including bone and joint infection
-(NCT03723551) --- the most clinically advanced target here. Flat
+FabI, enoyl-ACP reductase, adds a third pathway: fatty acid synthesis,
+unrelated to DNA replication and folate metabolism, so a molecule scoring at
+all three is not scoring at one mechanism three times. Triclosan is the tool
+compound, and afabicin (Debio 1450) has reached phase 2 trials against
+\textit{S.\,aureus}, including bone and joint infection (NCT03723551). Flat
 nitrogen-containing aromatics stack against the NADP nicotinamide with a
 hydrogen bond to Tyr156, which is compatible with the panel's heteroaromatic
 content. Only ternary holo structures are usable, because the
 substrate-binding loop is disordered otherwise.
 
-Its weakness is stated rather than left for review. Whether type-II fatty acid
+Whether type-II fatty acid
 synthesis is a viable antibacterial target in Gram-positive pathogens is
 contested: Brinster \textit{et al.}\ argued that these organisms bypass FAS-II
 inhibition by scavenging host fatty acids~\cite{brinster2009}, and the
@@ -226,8 +226,9 @@ chelating hydroxamates; Vina has no explicit electrostatic term and mishandles
 metal coordination \\
 RNA polymerase switch region & large lipophilic macrocycles on a shallow
 surface that locally refolds on binding \\
-LptD/LptA, LolE & compelling biology, but identified phenotypically rather
-than structurally; no clean high-resolution small-molecule pocket \\
+LptD/LptA, LolE & essential to the outer membrane, but identified
+phenotypically and genetically rather than structurally; no co-crystal
+structure with a drug-like ligand to define a pocket \\
 tRNA synthetases & benzoxaborole mechanism is covalent and tRNA-dependent \\
 DXR/MEP, UPPS, riboswitches & charged phosphonate sites, RNA targets, or thin
 structural support \\
@@ -252,8 +253,7 @@ function can represent. And FabI against FabL would give a cross-isoform
 compatibility profile --- structurally the same question as the DHFR pair
 above, but about antibacterial spectrum rather than host selectivity. The
 highest-quality structure in the whole candidate set, 3OID at 1.80~\AA,
-is available for it. It is an extension for comparison, not a gap in the
-present result: nothing reported here depends on it.
+is available for it. Nothing reported here depends on it.
 
 \section{Result}
 \label{sec:result}
@@ -308,8 +308,8 @@ ranking of this kind. That effect is not present here: the correlation between
 score and heavy-atom count runs from \sizeCorrLo{} to \sizeCorrHi{} across the
 \nReceptors{} receptors, i.e.\ marginally positive. The heavy-atom range is
 narrow (median \heavyMedian, from \heavyMin{} to \heavyMax), which is the
-likely reason. Raw scores and efficiencies therefore rank this particular set
-consistently.
+likely reason. A ranking of this set by raw score is therefore not a ranking
+by size.
 
 \begin{figure}[tb]
 \centering
@@ -416,15 +416,13 @@ cross-isoform comparison, not close a gap.
 \item No actives-versus-decoys enrichment test (ROC AUC, EF1\%, BEDROC) has
 been run, so by the project's own selection criteria every target here remains
 provisional.
-\item Whether type-II fatty acid synthesis is a viable target in
-Gram-positive pathogens is contested in the literature. That bears directly on
-the FabI results, which carry most of the margins reported above.
+\item The FAS-II controversy (\S\ref{sec:targets}) bears directly on the
+FabI results, which carry most of the margins reported above.
 \item \nScrubFailed{} of \nInput{} molecules failed ligand preparation and are
 absent from every figure here.
 \item Vina scores are a ranking device, not predicted binding free
 energies: correlation with measured affinity is weak across docking programs
-and scoring functions~\cite{warren2006}, and no experimental measurement is
-involved at any point.
+and scoring functions~\cite{warren2006}.
 \end{itemize}
 
 \begin{thebibliography}{99}
