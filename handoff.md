@@ -10,17 +10,21 @@ synthetic fixture, so the numbers in it are not yours.
 
 ### 1. Build the real PDF (~10 min, blocks nothing else)
 
-```bash
-# cluster
-cd /storage/users/kikolski/screening-dock/results/panel500_v1
-tar czf /tmp/report_data.tgz -C docking analysis/per_molecule.csv \
-    redock_control.json summary.json -C ../manifests ligands.json
+Four files, pulled straight across. No git involved: `results/` and
+`report/data/` are both ignored, so result data never travels through the
+repo, and the commits were made on this machine so there is nothing to pull.
 
-# locally
-cd ~/mateusz-dock && git pull
-mkdir -p report/data && tar xzf /path/to/report_data.tgz -C report/data
+```bash
+cd ~/mateusz-dock && mkdir -p report/data
+R=<user>@<login-host>:/storage/users/kikolski/screening-dock/results/panel500_v1
+rsync -av "$R"/docking/{analysis/per_molecule.csv,redock_control.json,summary.json} \
+          "$R"/manifests/ligands.json  report/data/
 cd report && make venv && make      # make venv once: system python3 lacks pandas
 ```
+
+The four land flat in `report/data/`, which is what `make_report.py` expects
+(`data/per_molecule.csv`, not `data/analysis/...`). The login host is not
+recorded anywhere in this repo — add it above once it is known.
 
 Confirm it is real data, not the fixture: the near-miss table must show **9**
 rows and the selectivity table **0 / 492**. The fixture gives 7 and 8.
