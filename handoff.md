@@ -88,7 +88,7 @@ Reading the target rationale against the results changed what the report says:
 - **Corrections pushed back into the document:** 7MYM's cofactor is **NAP, not
   NDP** as written (silent failure — the wrong name drops the cofactor and
   docks into an empty pocket); the panel is `exp_c5_selected_500`, not EXP-C2;
-  §7's claimed Vina size bias is **absent here** (+0.04 to +0.14, measured);
+  §7's claimed Vina size bias is **absent here** (+0.04 to +0.13, measured);
   §4.1's GyrB bridging-water pitfall was tested (3U2D redocks at 0.53 Å with
   its four waters excluded).
 - **Still outstanding by the document's own criteria:** no actives-vs-decoys
@@ -186,7 +186,7 @@ producing zero.
 
 I asserted twice during this work that Vina's score-vs-size bias would inflate
 the rankings here. **It does not apply to this panel.** Measured: Pearson
-+0.04 to +0.14 across the five receptors, i.e. slightly *positive* — bigger
++0.04 to +0.13 across the five receptors, i.e. slightly *positive* — bigger
 molecules score marginally worse. The size range is narrow (median 41, min 21,
 max 57) and the set is chemically homogeneous, which washes the correlation
 out. Raw score is usable for ranking within this panel; LE still reorders it

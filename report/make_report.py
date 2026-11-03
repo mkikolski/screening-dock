@@ -136,6 +136,18 @@ def selectivity_table(df: pd.DataFrame, bact_dhfr: str | None, out: Path) -> Non
                 rows)
 
 
+def gate_pass(r: dict) -> bool:
+    """Does this receptor clear the redocking gate?
+
+    Derived from rmsd_best, not read from the record's own `verdict` field:
+    that field was written by the pipeline under the original top-pose rule,
+    which the project replaced with best-of-nine. Trusting it would print FAIL
+    for FabI and GyrB E. coli while the prose says all five pass.
+    """
+    best = r.get("rmsd_best")
+    return best is not None and best <= r.get("threshold", 2.0)
+
+
 def receptor_table(summary: dict, redock: list[dict], out: Path) -> None:
     by_name = {r["receptor"]: r for r in redock}
     rows = []
@@ -150,11 +162,11 @@ def receptor_table(summary: dict, redock: list[dict], out: Path) -> None:
             f"{'--' if top is None else num(top)} & "
             f"{'--' if best is None else num(best)} & "
             f"{'--' if rank is None else rank} & "
-            f"{r.get('verdict', '--')} \\\\"
+            f"{'pass' if gate_pass(r) else r'\\textbf{FAIL}'} \\\\"
         )
     write_table(out, "llccccccl",
                 ["receptor", "PDB", "best", "median", "max LE",
-                 "top RMSD", "best RMSD", "rank", "redock"], rows)
+                 "top RMSD", "best RMSD", "rank", "gate"], rows)
 
 
 def seed_table(df: pd.DataFrame, macros: Macros, out: Path) -> None:
@@ -163,6 +175,8 @@ def seed_table(df: pd.DataFrame, macros: Macros, out: Path) -> None:
     The p-value is the one quantity analyze.py prints but does not save, so it
     is recomputed here by the same method and generator seed
     (default_rng(0), 10k shuffles) to stay identical to the reported figure.
+    Both sides count ties toward the null with a tolerance, which is what makes
+    them agree: without it the two differ in the third decimal.
     """
     if "seed" not in df:
         write_table(out, "l", ["seed"], [])
@@ -194,7 +208,9 @@ def seed_table(df: pd.DataFrame, macros: Macros, out: Path) -> None:
     for i in range(gaps.size):
         q = rng.permutation(pool)
         gaps[i] = np.median(q[:a.size]) - np.median(q[a.size:])
-    macros.add("seedPval", f"{float((np.abs(gaps) >= abs(obs)).mean()):.3f}")
+    # Ties toward the null, with a tolerance; see the note in analyze.py.
+    macros.add("seedPval",
+               f"{float((np.abs(gaps) >= abs(obs) - 1e-9).mean()):.3f}")
     macros.add("seedGap", signed(obs))
     macros.add("seedHi", hi)
     macros.add("seedLo", lo)
@@ -374,7 +390,9 @@ def main() -> None:
     m.add("heavyMin", f"{df['heavy_atoms'].min():.0f}")
     m.add("heavyMax", f"{df['heavy_atoms'].max():.0f}")
 
-    m.add("nRedockPass", sum(r.get("verdict") == "PASS" for r in redock))
+    m.add("nRedockPass",
+          sum(r.get("best_pose_rank") == 1 for r in redock))
+    m.add("nRedockGate", sum(gate_pass(r) for r in redock))
     m.add("nRedockTotal", len(redock))
     m.add("redockThreshold",
           f"{redock[0].get('threshold', 2.0):.1f}" if redock else "2.0")
@@ -395,7 +413,7 @@ def main() -> None:
         m.add("bestLECandidateTarget", pretty(byle["best_bacterial_target"]))
         m.add("bestLECandidateHeavy", int(byle["heavy_atoms"]))
         m.add("nearMissTargets", ", ".join(
-            sorted({PLAIN.get(t, t) for t in near["best_bacterial_target"]})))
+            sorted({pretty(t) for t in near["best_bacterial_target"]})))
     print(f"  tables/          4 files, {len(near)} near-misses")
 
     style()

@@ -204,7 +204,13 @@ def main() -> None:
             for i in range(n_shuf):
                 q = rng.permutation(pool)
                 gaps[i] = np.median(q[:n_a]) - np.median(q[n_a:])
-            pval = float((np.abs(gaps) >= abs(obs)).mean())
+            # Ties count toward the null, compared with a tolerance rather than
+            # exact float equality: Vina scores are discretised to 3 dp, so the
+            # shuffled gap hits |obs| exactly ~40 times in 10k, and whether
+            # those land inside `>=` otherwise depends on the last bit of a
+            # float -- which differs between computing the margin here and
+            # reading it back from per_molecule.csv.
+            pval = float((np.abs(gaps) >= abs(obs) - 1e-9).mean())
             verdict = "distinguishable" if pval < 0.05 else "NOT distinguishable"
             print(f"  seed {hi} vs seed {lo}: median gap {obs:+.2f} kcal/mol, "
                   f"permutation p={pval:.3f} ({n_shuf} shuffles) -> {verdict}")

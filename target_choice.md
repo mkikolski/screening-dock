@@ -272,7 +272,7 @@ These should appear in the manuscript, not be left for review to surface.
   desolvation are all poorly handled, and there is a known size/lipophilicity
   bias. Triage is therefore by **ligand efficiency (LE) and LLE**, not raw score.
   *Measured on this panel:* the size bias is **absent** — score against
-  heavy-atom count gives Pearson +0.04 to +0.14 across the five receptors, i.e.
+  heavy-atom count gives Pearson +0.04 to +0.13 across the five receptors, i.e.
   marginally positive. The heavy-atom range is narrow (median 41, 21–57) and the
   set chemically homogeneous, which is the likely reason. LE triage remains
   sensible, but not for this stated reason on this panel.
