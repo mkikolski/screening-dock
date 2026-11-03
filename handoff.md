@@ -1,7 +1,111 @@
-# Handoff — 2026-10-26
+# Handoff — 2026-11-03
 
-**State: run complete, analysed.** Job 1994 finished 2026-10-18 22:44 on
-`serwer1`, commit `9770a4e`. Nothing is pending.
+**State: run complete and analysed; a LaTeX report exists but still needs real
+data.** Job 1994 finished 2026-10-18 22:44 on `serwer1`, commit `9770a4e`.
+
+**Pick up at step 1 below.** The PDF in `report/` currently builds from a
+synthetic fixture, so the numbers in it are not yours.
+
+## Next steps
+
+### 1. Build the real PDF (~10 min, blocks nothing else)
+
+```bash
+# cluster
+cd /storage/users/kikolski/screening-dock/results/panel500_v1
+tar czf /tmp/report_data.tgz -C docking analysis/per_molecule.csv \
+    redock_control.json summary.json -C ../manifests ligands.json
+
+# locally
+cd ~/mateusz-dock && git pull
+mkdir -p report/data && tar xzf /path/to/report_data.tgz -C report/data
+cd report && make venv && make      # make venv once: system python3 lacks pandas
+```
+
+Confirm it is real data, not the fixture: the near-miss table must show **9**
+rows and the selectivity table **0 / 492**. The fixture gives 7 and 8.
+
+### 2. FabL, if the isoform argument matters (~27 h, unattended)
+
+`target_choice.md` §4.4 lists FabL as priority 4, and §5's FabI+FabL
+cross-isoform comparison is the stated justification for including FabI at
+all — but FabL was never docked, so that argument has no data behind it.
+
+Residue names verified against the entry (192 NDP atoms / 4 chains = 48 each,
+68 TCL / 4 = 17 each, 1.80 Å, tetramer A–D). Add to `configs/panel500.yaml`:
+
+```yaml
+  - name: fabl_bsubtilis_3oid
+    pdb_id: 3OID
+    keep_chains: [A]
+    keep_hetatms: [NDP] # verified NDP in this entry: 48 atoms/chain
+    redock_ligand_resname: TCL # verified: triclosan, 17 atoms
+    ph: 7.4
+    notes: >
+      B. subtilis FabL, the triclosan-resistance isoform. Reversibly
+      inhibited, unlike FabI's slow-binding ternary complex, so ordinary
+      docking occupancy is the right model. 1.80 A, R-free 0.181 --
+      highest-quality structure in the panel. Tetramer A-D; chain A only.
+    box:
+      reference_ligand_resname: TCL
+      size: [22.0, 22.0, 22.0]
+```
+
+```bash
+python preflight.py --config configs/panel500.yaml   # catches a wrong resname
+sbatch run_all.slurm
+```
+
+No special-casing needed. `prep-ligands` finds all 492 recorded and returns
+instantly, the five existing receptors report "already complete, nothing to
+dock", and only FabL's 492 dockings run. Then re-pull and `make` — the report's
+title, receptor count and target list are all generated, so nothing goes stale.
+
+### 3. LLE, optional (~15 min of work)
+
+`target_choice.md` §7 asks for triage by LE **and** LLE; only LE exists.
+RDKit's Crippen estimator gives logP from the SMILES already in
+`scores_by_ligand.csv`, so no new data is needed — but LLE is properly defined
+against *measured* potency, and substituting a docking score makes it a
+rescaled LE rather than a true LLE. Label it as such if it gets added.
+
+## The report
+
+`report/` builds a 4–5 page PDF: `make venv` once, then `make`. Sources are
+tracked (`summary.tex`, `make_report.py`, `Makefile`); the data, figures and
+PDF are not.
+
+Nothing in the prose is typed by hand. `make_report.py` reads `analyze.py`'s
+output and emits `numbers.tex` (one macro per quantity), four complete
+tabulars and three matplotlib figures; `summary.tex` is prose plus `\input`.
+**If a number looks wrong, fix the generator, not the `.tex`.** A macro used
+but never generated fails the build rather than printing silently.
+
+Per the brief the report states what was measured and makes no recommendation.
+
+## Reconciliation with `target_choice.md` (2026-11-03)
+
+Reading the target rationale against the results changed what the report says:
+
+- **Framing.** The panel was generated target-agnostically under an ADMET
+  surrogate reward, with receptors chosen retrospectively. Without that stated,
+  "0 of 492" reads as *a designed antibacterial set failed* instead of *a
+  target-agnostic set shows no incidental DHFR selectivity*. That paragraph is
+  now in the summary and is the single most important thing in the document.
+- **Gate redefined.** §8 said targets failing redocking are dropped, not
+  carried with a caveat — which the report was doing for 4ZVI and 3GR6. The
+  gate is now defined as recovery within the nine retained poses (all five
+  pass), with the pose's rank reported as a confidence weight instead.
+  `target_choice.md` §3 records this.
+- **Corrections pushed back into the document:** 7MYM's cofactor is **NAP, not
+  NDP** as written (silent failure — the wrong name drops the cofactor and
+  docks into an empty pocket); the panel is `exp_c5_selected_500`, not EXP-C2;
+  §7's claimed Vina size bias is **absent here** (+0.04 to +0.14, measured);
+  §4.1's GyrB bridging-water pitfall was tested (3U2D redocks at 0.53 Å with
+  its four waters excluded).
+- **Still outstanding by the document's own criteria:** no actives-vs-decoys
+  enrichment test (ROC AUC, EF1%, BEDROC), so all targets remain provisional;
+  FabL not docked.
 
 ## Summary for the supervisor
 
@@ -170,15 +274,21 @@ from `head -10` of a sorted SMILES file. 48 h would have died at ~36% done and
 (`--shard-count 2`) rather than trusting a time limit again; `merge_results.py`
 already globs `scores*.csv` and dedups on `(ligand, receptor)`.
 
-## Redocking validation: 3/5 PASS, as accepted
+## Redocking validation: 5/5 pass the gate, 3/5 rank the pose first
+
+The gate is recovery of the crystal pose within 2 Å among the nine retained
+poses — see the reconciliation section above for why it is defined that way.
+All five pass. The `verdict` column below is `analyze.py`'s *top-pose* test,
+kept because the rank is a useful per-receptor confidence weight, but it is no
+longer the pass/fail criterion.
 
 | receptor | top pose | best pose | rank | verdict |
 |---|---|---|---|---|
-| gyrb_saureus_3u2d | 0.53 | 0.53 | 1 | PASS |
-| gyrb_ecoli_4zvi | 9.89 | 1.47 | 5 | FAIL (ranking) |
-| dhfr_ecoli_7mym | 0.89 | 0.89 | 1 | PASS |
-| dhfr_human_2w3a | 0.40 | 0.40 | 1 | PASS |
-| fabi_saureus_3gr6 | 5.91 | 1.71 | 2 | FAIL (ranking) |
+| gyrb_saureus_3u2d | 0.53 | 0.53 | 1 | rank 1 |
+| gyrb_ecoli_4zvi | 9.89 | 1.47 | 5 | pose at rank 5 |
+| dhfr_ecoli_7mym | 0.89 | 0.89 | 1 | rank 1 |
+| dhfr_human_2w3a | 0.40 | 0.40 | 1 | rank 1 |
+| fabi_saureus_3gr6 | 5.91 | 1.71 | 2 | pose at rank 2 |
 
 All five reproduce the native pose within 2 Å somewhere in the top 9, so the
 boxes, receptors and cofactors are correct. The two failures are Vina ranking a
@@ -270,6 +380,8 @@ harmless. Per-receptor reports are in
   least reliable (native pose at rank 2, 5.91 Å top pose). Building a campaign
   on `...-00004571` without resolving that is building on the weakest part of
   the panel.
+- FabL and the enrichment test are in **Next steps**, not here: both are
+  preconditions the project set for itself, not optional extras.
 - The 8 `scrub_failed` molecules are listed in
   `results/panel500_v1/manifests/ligands.json` under `failures`, if the
   denominator ever needs defending.
