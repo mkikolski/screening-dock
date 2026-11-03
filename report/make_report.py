@@ -331,6 +331,9 @@ def main() -> None:
     m.add("nDockings", summary.get("n_ligand_states", len(df) * len(recs)))
     m.add("humanTarget", pretty(human))
     m.add("bactDhfr", pretty(bact_dhfr) if bact_dhfr else "--")
+    # Listed from the data so adding or dropping a receptor cannot leave the
+    # title and the opening sentence disagreeing with the tables.
+    m.add("bacterialList", ", ".join(pretty(r) for r in sorted(bact)))
     m.add("leFloor", f"{LE_FLOOR:.2f}")
     m.add("marginMin", f"{MARGIN_MIN}")
 
