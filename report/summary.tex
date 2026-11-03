@@ -43,12 +43,11 @@ docked against \nReceptors{} receptors: \nBacterial{} bacterial targets
 \nScrubFailed{} molecules were lost during ligand preparation, leaving
 \nMolecules{} molecules and \nDockings{} dockings, all of which completed.
 
-The panel was not designed against these targets. It was produced by a
-target-agnostic generative pipeline under an ADMET surrogate reward, and the
-receptors were selected retrospectively, to ask whether the set is chemically
-and geometrically compatible with validated antibacterial sites. Nothing below
-is a prediction of activity, and no experimental measurement is involved at any
-point.
+No target was defined before generation, so the receptors were selected
+retrospectively and the question below is whether the set is chemically and
+geometrically compatible with validated antibacterial sites, not whether it
+was designed for them. Nothing here is a prediction of activity, and no
+experimental measurement is involved at any point.
 
 Against the counter-screen the set is not selective. Comparing the two DHFR
 orthologues directly --- the same fold with the same cofactor, both receptors
@@ -76,26 +75,19 @@ from the run: it records why these \nReceptors{} receptors were chosen. No
 target was defined before generation, so the selection is retrospective, and
 the criteria below were applied to structures rather than to results.
 
-\subsection{What the panel allows}
+\subsection{What constrained the choice}
 
-Three properties of the panel constrain which sites it can be docked
-into at all.
+Because the nitrogen filter is on total count, the set is not guaranteed
+an ionisable amine. Sites were therefore preferred where aromatic and
+heterocyclic nitrogen is itself the recognition element over sites that read a
+cation; by the same token the set does not satisfy the eNTRy rules for
+Gram-negative accumulation, which additionally want that amine, low
+globularity and few rotatable bonds~\cite{richter2017}. Its property space
+also fits neither the shallow surface that refolds around a large lipophilic
+macrocycle, as the RNA polymerase switch region does, nor the charged
+phosphonate or nucleotide mimic that MurA--F and DXR/MEP want.
 
-\emph{Nitrogen-rich, but not amine-guaranteed.} The generator filtered on
-\emph{total} nitrogen count, which counts amide, nitrile and non-basic
-aromatic nitrogen. It does not establish the ionisable, preferably primary
-amine that the eNTRy rules identify as necessary for accumulation in
-Gram-negative bacteria, alongside low globularity and few rotatable
-bonds~\cite{richter2017}. Sites were therefore preferred where
-\emph{aromatic and heterocyclic} nitrogen is itself the recognition element,
-rather than sites that read a cation.
-
-\emph{Small and synthesisable.} Two kinds of site are a poor match for the
-panel's property space. One is the shallow surface that refolds around a large
-lipophilic macrocycle, as the RNA polymerase switch region does. The other
-wants a charged phosphonate or nucleotide mimic, as MurA--F and DXR/MEP do.
-
-\emph{Non-covalent, no metal centre.} Vina is a non-covalent empirical
+The method narrowed the choice further. Vina is a non-covalent empirical
 function with no explicit electrostatic term, so covalent mechanisms
 ($\beta$-lactams at PBPs, fosfomycin at MurA, benzoxaboroles at tRNA
 synthetases) and zinc-chelating hydroxamate chemistry (LpxC, peptide
