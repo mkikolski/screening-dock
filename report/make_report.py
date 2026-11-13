@@ -27,19 +27,26 @@ HUMAN_KEY = "human"
 LE_FLOOR = 0.30          # conventional ligand-efficiency floor for a hit
 MARGIN_MIN = 0.5         # kcal/mol, the near-miss cutoff analyze.py uses
 
+# Two bacterial DHFRs now, so the labels have to disambiguate them by entry.
+# A receptor missing from these maps degrades silently -- pretty() falls back
+# to the raw name -- so adding a receptor means adding it to all three.
 PRETTY = {
-    "dhfr_ecoli_7mym": r"DHFR \textit{E.\,coli}",
+    "dhfr_ecoli_6xg5": r"DHFR \textit{E.\,coli} (6XG5)",
+    "dhfr_ecoli_7mym": r"DHFR \textit{E.\,coli} (7MYM)",
     "dhfr_human_2w3a": r"DHFR human",
     "fabi_saureus_3gr6": r"FabI \textit{S.\,aureus}",
     "gyrb_ecoli_4zvi": r"GyrB \textit{E.\,coli}",
     "gyrb_saureus_3u2d": r"GyrB \textit{S.\,aureus}",
 }
 PLAIN = {
-    "dhfr_ecoli_7mym": "DHFR E. coli", "dhfr_human_2w3a": "DHFR human",
+    "dhfr_ecoli_6xg5": "DHFR E. coli (6XG5)",
+    "dhfr_ecoli_7mym": "DHFR E. coli (7MYM)",
+    "dhfr_human_2w3a": "DHFR human",
     "fabi_saureus_3gr6": "FabI S. aureus", "gyrb_ecoli_4zvi": "GyrB E. coli",
     "gyrb_saureus_3u2d": "GyrB S. aureus",
 }
 PDB_ID = {
+    "dhfr_ecoli_6xg5": "6XG5",
     "dhfr_ecoli_7mym": "7MYM", "dhfr_human_2w3a": "2W3A",
     "fabi_saureus_3gr6": "3GR6", "gyrb_ecoli_4zvi": "4ZVI",
     "gyrb_saureus_3u2d": "3U2D",

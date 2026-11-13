@@ -49,10 +49,11 @@ geometrically compatible with validated antibacterial sites, not whether it
 was designed for them. Nothing here is a prediction of activity, and no
 experimental measurement is involved at any point.
 
-Against the counter-screen the set is not selective. Comparing the two DHFR
-orthologues directly --- the same fold with the same cofactor, both receptors
-validated by redocking --- \textbf{\selDhfrN{} of \nMolecules{} molecules
-score better against the bacterial enzyme}. The median difference is
+Against the counter-screen the set is not selective. Comparing the DHFR
+orthologues directly --- 6XG5 against 2W3A, matched on cofactor oxidation
+state and within 0.40~\AA{} on resolution, both validated by redocking ---
+\textbf{\selDhfrN{} of \nMolecules{} molecules score better against the
+bacterial enzyme}. The median difference is
 \selDhfrMedian{}~kcal\,mol$^{-1}$ in favour of the human enzyme, and the
 upper quartile is \selDhfrQHi{}, so the whole distribution lies on the same
 side.
@@ -104,8 +105,10 @@ GyrB ATP site, Gram-positive & 3U2D \textit{S.\,aureus} & 1.85 &
 pyrrolamide & \cite{eakin2012} \\
 GyrB ATP site, Gram-negative & 4ZVI \textit{E.\,coli} & 2.20 &
 \textit{N}-phenylpyrrolamide & \cite{zidar2015} \\
-DHFR, bacterial & 7MYM \textit{E.\,coli} & 3.04 &
-trimethoprim $+$ NADPH & \cite{krucinska2022} \\
+DHFR, bacterial, matched & 6XG5 \textit{E.\,coli} & 1.90 &
+trimethoprim $+$ NADPH & \cite{manna2021} \\
+DHFR, bacterial, original & 7MYM \textit{E.\,coli} & 3.04 &
+trimethoprim $+$ NADP$^+$ & \cite{krucinska2022} \\
 DHFR, host counter-screen & 2W3A human & 1.50 &
 trimethoprim $+$ NADPH & \cite{pdb2w3a} \\
 FabI, Gram-positive pathogen & 3GR6 \textit{S.\,aureus} & 2.28 &
@@ -138,17 +141,23 @@ fall almost entirely on FabI.
 
 The DHFR pair was added for this screen. It is the only comparison in the
 panel that controls for anything: the same ligands against the same fold with
-the same cofactor, two receptors differing in the pocket rather than in
-everything at once. A score difference between unrelated folds confounds the
-comparison with Vina's own calibration, and a score difference between two
-DHFRs does not. Trimethoprim discriminates the two enzymes by three to four
+the same cofactor in the same oxidation state, two receptors differing in the
+pocket rather than in everything at once. A score difference between unrelated
+folds confounds the comparison with Vina's own calibration, and a score
+difference between two DHFRs does not. Trimethoprim discriminates the two enzymes by three to four
 orders of magnitude, an effect amplified by NADPH cooperativity that a rigid
 receptor cannot represent~\cite{wrobel2020}. The 2,4-diaminopyrimidine head
 group that engages the conserved Asp27 is also nitrogen-rich in the way the
 generator's filter selected for.
 
-The weak point is the structure. 7MYM is 3.04~\AA, the lowest resolution in
-the panel, against 1.50~\AA{} for its human counterpart.
+The pair was initially built on 7MYM, which is 3.04~\AA{} and holds NADP$^+$,
+against 1.50~\AA{} and NADPH for its human counterpart. Differing in resolution
+and in cofactor oxidation state at once, it was not the controlled comparison
+it was presented as, and a rigid receptor scored every molecule in the panel
+about 1.4~kcal\,mol$^{-1}$ more strongly at the human structure regardless of
+ligand size. 6XG5 was added to separate that offset from the chemistry: it is
+the same enzyme with the same inhibitor and the same reduced cofactor at
+1.90~\AA. Both are reported, 7MYM as the control on the offset itself.
 
 \begin{table}[tb]
 \centering
@@ -297,9 +306,11 @@ abbreviated to seed/serial, with full names in the result CSVs.}
 Ligands were enumerated to protonation states and 3D conformers with molscrub
 at pH 7.4 and typed with Meeko. Receptors were taken from the RCSB entries in
 Table~\ref{tab:receptors}, reduced to a single chain, protonated with PDBFixer
-at pH 7.4 and typed with Meeko. Cofactors (NADP$^+$ in the two DHFR structures
-and in FabI) were prepared separately and appended as rigid atoms, because
-Meeko carries no residue template for them. Docking used AutoDock Vina 1.2~\cite{vina2021}
+at pH 7.4 and typed with Meeko. Cofactors were prepared separately and appended
+as rigid atoms, because Meeko carries no residue template for them. Each entry
+keeps the oxidation state its own crystal holds: NADPH in 6XG5 and 2W3A,
+NADP$^+$ in 7MYM and FabI. A rigid cofactor reproduces the geometry of the
+pocket wall but none of the cooperativity between cofactor and inhibitor. Docking used AutoDock Vina 1.2~\cite{vina2021}
 through its Python API at exhaustiveness 32, nine retained poses, seed 2137,
 with boxes of 20--22~\AA{} centred on each entry's co-crystal ligand.
 
@@ -352,6 +363,10 @@ ATP-competitive DNA gyrase B inhibitors. \textit{J.\ Med.\ Chem.}
 functional studies of plasmid-encoded dihydrofolate reductases reveal a common
 mechanism of trimethoprim resistance in Gram-negative pathogens.
 \textit{Commun.\ Biol.} \textbf{5} (2022) 459. PDB 7MYM.
+
+\bibitem{manna2021} Manna M.S. \textit{et al.} A trimethoprim derivative
+impedes antibiotic resistance evolution. \textit{Nat.\ Commun.} \textbf{12}
+(2021) 2949. doi:10.1038/s41467-021-23191-z. PDB 6XG5.
 
 \bibitem{pdb2w3a} PDB 2W3A, human dihydrofolate reductase in complex with
 NADPH and trimethoprim, 1.50~\AA. Deposited 2008; no primary publication.

@@ -37,11 +37,42 @@ class LigandTask:
     max_attempts: int = 5
 
 
-def _init_worker(ph: float, skip_tautomers: bool) -> None:
-    """Pool initializer: build the Scrub once per process, not once per task."""
+def _init_worker(ph: float, skip_tautomers: bool,
+                 n_etkdg_attempts: int | None = None,
+                 use_random_coords: bool = False) -> None:
+    """Pool initializer: build the Scrub once per process, not once per task.
+
+    The two ETKDG options are passed only when set, so an unset config builds
+    exactly the Scrub the original run used.
+    """
     global _SCRUB
+    import inspect
     from molscrub import Scrub
-    _SCRUB = Scrub(ph_low=ph, ph_high=ph, skip_tautomers=skip_tautomers)
+
+    kwargs: dict[str, object] = {
+        "ph_low": ph, "ph_high": ph, "skip_tautomers": skip_tautomers,
+    }
+    extra: dict[str, object] = {}
+    if n_etkdg_attempts is not None:
+        extra["num_etkdg_attempts"] = n_etkdg_attempts
+    if use_random_coords:
+        extra["use_random_coords"] = True
+
+    if extra:
+        # molscrub documents these as CLI flags and does not publish its Python
+        # signature, so check before passing. Raising is deliberate: silently
+        # dropping these options is the exact bug this code exists to fix, and
+        # ligand prep is cheap enough to fail fast.
+        supported = inspect.signature(Scrub.__init__).parameters
+        missing = sorted(k for k in extra if k not in supported)
+        if missing:
+            raise RuntimeError(
+                f"installed molscrub Scrub() accepts no {missing}. "
+                f"Accepted parameters: {sorted(supported)}"
+            )
+        kwargs.update(extra)
+
+    _SCRUB = Scrub(**kwargs)
 
 
 def read_smiles(path: str | Path) -> list[tuple[str, str]]:
@@ -132,8 +163,11 @@ def process_ligands(
     ph: float = 7.4,
     skip_tautomers: bool = True,
     n_attempts: int = 5,
+    n_etkdg_attempts: int | None = None,
+    use_random_coords: bool = False,
     n_workers: int = 8,
     checkpoint: str | Path | None = None,
+    retry_failed: bool = False,
 ) -> list[dict]:
     """Prepare every ligand in a .smi file. Returns one record per input."""
     output_path = Path(output_path)
@@ -144,7 +178,8 @@ def process_ligands(
 
     # ligand_index.json is only written at the end, so without a checkpoint an
     # interrupted prep leaves nothing behind and `dock` then refuses to start.
-    done = read_checkpoint(checkpoint, key="name") if checkpoint else {}
+    done = (read_checkpoint(checkpoint, key="name", retry_failed=retry_failed)
+            if checkpoint else {})
     if done:
         log.info("Resuming: %d ligands already prepared", len(done))
 
@@ -166,7 +201,8 @@ def process_ligands(
             with Pool(
                 processes=n_workers,
                 initializer=_init_worker,
-                initargs=(ph, skip_tautomers),
+                initargs=(ph, skip_tautomers, n_etkdg_attempts,
+                          use_random_coords),
             ) as pool:
                 for i, rec in enumerate(
                     pool.imap_unordered(process_ligand, tasks, chunksize=4), 1

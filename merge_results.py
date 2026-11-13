@@ -79,11 +79,38 @@ def main() -> None:
 
     wide = best.pivot_table(index="ligand_base", columns="receptor",
                             values="best_score")
-    bact = [c for c in wide.columns if "dhfr" in c and "human" not in c]
+    bact = sorted(c for c in wide.columns if "dhfr" in c and "human" not in c)
     human = [c for c in wide.columns if "dhfr_human" in c]
     if bact and human:
-        wide["dhfr_selectivity"] = wide[human[0]] - wide[bact[0]]
-        log.info("Added dhfr_selectivity (positive = favours bacterial)")
+        # One column per bacterial DHFR, so every pair stays visible and
+        # comparable instead of collapsing into a single number.
+        for b in bact:
+            wide[f"selectivity_{b}"] = wide[human[0]] - wide[b]
+
+        # Then one headline column. This used to be wide[bact[0]], picked by
+        # sort order: adding a second bacterial DHFR silently repointed
+        # dhfr_selectivity at the new receptor, with no error and no warning,
+        # and every downstream number inherited it. Name it in the config.
+        primary = cfg.primary_bacterial_dhfr
+        if primary is None:
+            if len(bact) > 1:
+                raise SystemExit(
+                    f"{len(bact)} bacterial DHFR receptors in the panel "
+                    f"({', '.join(bact)}) but primary_bacterial_dhfr is unset. "
+                    "Set it in the config: dhfr_selectivity must not be chosen "
+                    "by column order."
+                )
+            primary = bact[0]
+        elif primary not in bact:
+            raise SystemExit(
+                f"primary_bacterial_dhfr={primary!r} is not a bacterial DHFR "
+                f"column in this run. Available: {', '.join(bact) or 'none'}"
+            )
+
+        wide["dhfr_selectivity"] = wide[f"selectivity_{primary}"]
+        log.info("Added dhfr_selectivity vs %s (positive = favours bacterial); "
+                 "per-receptor columns: %s",
+                 primary, ", ".join(f"selectivity_{b}" for b in bact))
     wide.to_csv(dock_dir / "scores_wide.csv")
 
     redock_path = dock_dir / "redock_control.json"

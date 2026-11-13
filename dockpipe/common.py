@@ -42,19 +42,28 @@ def sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def read_checkpoint(path: str | Path, key: str = "ligand") -> dict[str, dict]:
+def read_checkpoint(path: str | Path, key: str = "ligand",
+                    retry_failed: bool = False) -> dict[str, dict]:
     """Records from an append-only JSONL checkpoint, indexed by `key`.
 
     Both long stages append a flushed line per finished item so an interrupted
-    run resumes instead of starting over. A record counts as done whatever its
-    status: every failure mode here is deterministic (unparseable SMILES, a
-    Vina exception on one ligand), so retrying only burns the ~30 min the
-    docking cost in the first place. Callers log the failure count instead.
+    run resumes instead of starting over. By default a record counts as done
+    whatever its status, because the failure modes here are deterministic (an
+    unparseable SMILES, a Vina exception on one ligand) and retrying only burns
+    the time the attempt already cost. Callers log the failure count instead.
+
+    `retry_failed` drops every record whose status is not "ok", so the stage
+    redoes exactly those items. Needed whenever the thing that failed has since
+    changed. The eight scrub failures in panel500_v1 were only deterministic
+    because the retry loop re-ran an identical Scrub call -- once that call
+    takes different options they are recoverable, and without this flag they
+    stay skipped forever and the rerun silently does nothing.
     """
     done: dict[str, dict] = {}
     path = Path(path)
     if not path.exists():
         return done
+    retried = 0
     with open(path, encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
@@ -62,6 +71,9 @@ def read_checkpoint(path: str | Path, key: str = "ligand") -> dict[str, dict]:
                 continue
             try:
                 rec = json.loads(line)
+                if retry_failed and rec.get("status") != "ok":
+                    retried += 1
+                    continue
                 done[rec[key]] = rec
             except (json.JSONDecodeError, KeyError):
                 # A killed job can leave a half-written final line. Everything
@@ -69,6 +81,10 @@ def read_checkpoint(path: str | Path, key: str = "ligand") -> dict[str, dict]:
                 logging.getLogger(__name__).warning(
                     "Ignoring truncated checkpoint line in %s", path
                 )
+    if retried:
+        logging.getLogger(__name__).info(
+            "retry_failed: %d non-ok records in %s will be redone", retried, path
+        )
     return done
 
 
@@ -114,7 +130,17 @@ class PipelineConfig:
     ligand_ph: float = 7.4
     skip_tautomers: bool = True
     n_scrub_attempts: int = 5
+    # molscrub's own ETKDG knobs. None means "leave molscrub's default alone",
+    # so an existing config reproduces its previous run byte for byte.
+    # n_scrub_attempts above only re-runs the same Scrub call, which is
+    # pointless unless use_random_coords makes that call non-deterministic.
+    n_etkdg_attempts: int | None = None
+    use_random_coords: bool = False
     n_workers: int = 8
+    # Which bacterial DHFR the headline selectivity column compares against.
+    # Required once the panel holds more than one, because merge_results used
+    # to pick it positionally and would switch silently.
+    primary_bacterial_dhfr: str | None = None
 
     @staticmethod
     def from_yaml(path: str | Path) -> "PipelineConfig":

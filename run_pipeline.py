@@ -75,8 +75,11 @@ def cmd_prep_ligands(cfg: PipelineConfig, args) -> None:
         ph=cfg.ligand_ph,
         skip_tautomers=cfg.skip_tautomers,
         n_attempts=cfg.n_scrub_attempts,
+        n_etkdg_attempts=cfg.n_etkdg_attempts,
+        use_random_coords=cfg.use_random_coords,
         n_workers=args.workers or cfg.n_workers,
         checkpoint=p["ligands"] / ".ckpt_ligands.jsonl",
+        retry_failed=args.retry_failed,
     )
     write_manifest(
         p["manifests"] / "ligands.json",
@@ -209,6 +212,12 @@ def main() -> None:
         "--pdb-redo",
         action="store_true",
         help="fetch PDB-REDO re-refined models instead of RCSB",
+    )
+    ap.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="redo checkpointed items whose status is not ok "
+             "(prep-ligands; needed after changing how a failure is handled)",
     )
     ap.add_argument(
         "--allow-fail",

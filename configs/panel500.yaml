@@ -10,8 +10,21 @@ output_root: /storage/users/kikolski/screening-dock/results
 
 ligand_ph: 7.4
 skip_tautomers: true
+# n_scrub_attempts retries the same Scrub call, which only helps once that call
+# is non-deterministic -- hence use_random_coords. The first run lost 8 of 500
+# molecules to ETKDG embedding failures with these two unset: every one had a
+# quaternary carbon bonded to a trisubstituted nitrogen, which over-determines
+# the distance bounds around that bond. molscrub's own error names both knobs.
 n_scrub_attempts: 5
+n_etkdg_attempts: 20
+use_random_coords: true
 n_workers: 12
+
+# The headline selectivity column compares this receptor against
+# dhfr_human_2w3a. Named explicitly because with two bacterial DHFRs in the
+# panel merge_results used to choose positionally, so adding 6XG5 would have
+# switched the meaning of dhfr_selectivity with no error and no warning.
+primary_bacterial_dhfr: dhfr_ecoli_6xg5
 
 vina:
   scoring: vina
@@ -73,6 +86,30 @@ receptors:
     box:
       reference_ligand_resname: TOP
       size: [20.0, 20.0, 20.0]
+
+  - name: dhfr_ecoli_6xg5 # MATCHED COUNTERPART TO 2W3A
+    pdb_id: 6XG5
+    keep_chains: [A]
+    keep_hetatms: [NDP] # NADPH, reduced -- matches 2W3A exactly. NOT NAP.
+    redock_ligand_resname: TOP
+    ph: 7.4
+    notes: >
+      E. coli K-12 DHFR (folA) with trimethoprim and NADPH at 1.90 A, single
+      chain A. Added because the 7MYM/2W3A pair was not the controlled
+      comparison it was presented as: 7MYM is 3.04 A with NAP (oxidised) while
+      2W3A is 1.50 A with NDP (reduced), so the pair differed in resolution
+      and in cofactor oxidation state at once. Against 2W3A this entry matches
+      the cofactor exactly and cuts the resolution gap from 1.54 A to 0.40 A.
+      7MYM is deliberately retained so the baseline offset can be measured
+      against it rather than assumed away: in the first run every bacterial
+      target sat near -6.3 while 2W3A alone sat at -7.69, flat across ligand
+      size, which is the signature of a receptor artefact rather than
+      selectivity. The entry also holds GOL and CL, both deliberately dropped.
+      Residues 160-165 are an expression tag. Manna et al., Nat Commun 12:2949
+      (2021), doi:10.1038/s41467-021-23191-z.
+    box:
+      reference_ligand_resname: TOP
+      size: [20.0, 20.0, 20.0] # same box as the other two DHFRs
 
   - name: dhfr_human_2w3a # SELECTIVITY COUNTER-SCREEN
     pdb_id: 2W3A

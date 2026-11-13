@@ -57,7 +57,24 @@ def main() -> None:
     # ...and the docking key must not silently match it
     assert read_checkpoint(lk, key="ligand") == {}
 
-    print("checkpoint resume OK (both stages)")
+    # retry_failed: a recorded failure must come back as work to redo, or a
+    # rerun after fixing the cause silently does nothing. This is how the 8
+    # scrub failures in panel500_v1 would otherwise stay lost forever.
+    fk = d / ".ckpt_failed.jsonl"
+    fk.write_text(
+        json.dumps({"name": "ok1", "status": "ok", "n_states": 1}) + "\n"
+        + json.dumps({"name": "bad1", "status": "scrub_failed",
+                      "error": "ETKDG conformer generation failed"}) + "\n"
+        + json.dumps({"name": "bad2", "status": "no_states_written"}) + "\n"
+    )
+    assert set(read_checkpoint(fk, key="name")) == {"ok1", "bad1", "bad2"}, \
+        "default must still treat a failure as done"
+    kept = read_checkpoint(fk, key="name", retry_failed=True)
+    assert set(kept) == {"ok1"}, kept
+    assert "bad1" not in kept and "bad2" not in kept, \
+        "retry_failed must drop every non-ok status, not just one of them"
+
+    print("checkpoint resume OK (both stages, retry_failed)")
 
 
 if __name__ == "__main__":
