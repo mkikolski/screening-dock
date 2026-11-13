@@ -204,8 +204,16 @@ srun --job-name=prep-receptors \
 srun --job-name=redock \
   python run_pipeline.py redock --config "$CONFIG" --allow-fail
 
+# DOCKPIPE_RETRY_FAILED=1 redoes ligands whose checkpoint status is not ok.
+# Off by default: a resumed run must not silently repeat deterministic
+# failures. Set it only after changing why they failed -- otherwise prep
+# reports "already complete" and the losses stay lost.
+RETRY_LIGANDS=""
+[ -n "${DOCKPIPE_RETRY_FAILED:-}" ] && RETRY_LIGANDS="--retry-failed"
+
 srun --job-name=prep-ligands \
-  python run_pipeline.py prep-ligands --config "$CONFIG" --workers "$WORKERS"
+  python run_pipeline.py prep-ligands --config "$CONFIG" --workers "$WORKERS" \
+    $RETRY_LIGANDS
 
 srun --job-name=dock \
   python run_pipeline.py dock --config "$CONFIG" --workers "$WORKERS"
