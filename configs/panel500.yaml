@@ -56,7 +56,7 @@ receptors:
     pdb_id: 4ZVI
     keep_chains: [A]
     keep_hetatms: [] # IOD is a phasing iodide, deliberately dropped
-    # Redock: top pose 9.89 A, native pose 1.86 A at rank 4. The site is
+    # Redock: best of nine 1.47 A at rank 5, top pose 9.89 A. The site is
     # reproduced; Vina's ranking is what fails. Not a missing water --
     # only one 3.33 A HOH contact exists, and 3U2D passes at 0.52 A with
     # its four 2.72 A waters excluded.

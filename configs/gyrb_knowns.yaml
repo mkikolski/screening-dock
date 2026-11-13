@@ -1,0 +1,75 @@
+# Published GyrB ATP-site inhibitors, docked through the identical pipeline so
+# the generated panel can be read against real inhibitors rather than against
+# nothing. Built because the panel's best GyrB scores (-8.75 S. aureus, -8.33
+# E. coli) already beat both co-crystal ligands (08B -8.004, 4S4 -7.970), which
+# is a calibration warning rather than a hit.
+#
+# Separate run_name on purpose. prep-ligands rewrites
+# ligands/ligand_index.json for the whole input file, so pointing a second .smi
+# at panel500_v1 would overwrite the panel's index and mix these reference
+# compounds into its per_molecule.csv.
+#
+# The receptor blocks are copied from panel500.yaml unchanged. Confirm they
+# produce identical receptor PDBQTs before comparing scores across the two
+# runs -- every stage manifest carries SHA-256 checksums for exactly this.
+run_name: gyrb_knowns_v1
+
+# Written by fetch_gyrb_actives.py. Regenerate rather than hand-edit: the
+# matching gyrb_actives.csv carries the activity value, assay and chemotype
+# assignment for every line here, which is what makes the selection auditable.
+ligands_smi: /storage/users/kikolski/screening-dock/gyrb_actives.smi
+output_root: /storage/users/kikolski/screening-dock/results
+
+# Identical to panel500.yaml. Any difference makes the two runs incomparable,
+# which is the entire point of this config.
+ligand_ph: 7.4
+skip_tautomers: true
+n_scrub_attempts: 5
+n_etkdg_attempts: 20
+use_random_coords: true
+n_workers: 12
+
+vina:
+  scoring: vina
+  exhaustiveness: 32
+  n_poses: 9
+  seed: 2137
+  cpu: 1
+  min_rmsd: 1.0
+
+receptors:
+  # ---------------------------------------------------------------- GyrB ---
+  # Both blocks verbatim from panel500.yaml -- keep in sync.
+  - name: gyrb_saureus_3u2d
+    pdb_id: 3U2D
+    keep_chains: [A]
+    keep_hetatms: [] # chain A also has 2 MG; not in the pyrrolamide site
+    redock_ligand_resname: 08B
+    ph: 7.4
+    notes: >
+      S. aureus GyrB ATP site. Ligand 08B is the pyrrolamide
+      (4-bromo-5-methyl-N-[1-(3-nitropyridin-2-yl)piperidin-4-yl]-1H-pyrrole-2-
+      carboxamide), 25 atoms in chain A. Key contact is the Asp/conserved-water
+      hinge: if a bridging water sits in the pocket, add HOH to keep_hetatms.
+      Entry is a dimer (chains A, B) -- chain A only.
+    box:
+      reference_ligand_resname: 08B
+      size: [22.0, 22.0, 22.0]
+
+  - name: gyrb_ecoli_4zvi
+    pdb_id: 4ZVI
+    keep_chains: [A]
+    keep_hetatms: [] # IOD is a phasing iodide, deliberately dropped
+    # Redock: best of nine 1.47 A at rank 5, top pose 9.89 A. The site is
+    # reproduced; Vina's ranking is what fails. Not a missing water --
+    # only one 3.33 A HOH contact exists, and 3U2D passes at 0.53 A with
+    # its four 2.72 A waters excluded.
+    redock_ligand_resname: 4S4
+    ph: 7.4
+    notes: >
+      E. coli GyrB with the N-phenylpyrrolamide 4S4
+      (N-(4-{[(4,5-dibromo-1H-pyrrol-2-yl)carbonyl]amino}benzoyl)glycine),
+      23 atoms. Single chain A.
+    box:
+      reference_ligand_resname: 4S4
+      size: [22.0, 22.0, 22.0]
