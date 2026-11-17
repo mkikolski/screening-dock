@@ -292,8 +292,84 @@ CSV_COLS = ["name", "chembl_id", "smiles", "inchikey", "heavy_atoms",
             "assay_chembl_id", "assay_description"]
 
 
+def select(rows: list[dict], limit: int, mode: str) -> list[dict]:
+    """Choose the reference set from the filtered pool.
+
+    At a small limit this choice is the experiment, not a detail. ChEMBL's
+    sub-nM end for GyrB is two or three patent series, so a plain potency
+    ranking of the ~450-compound pool gives a top 10 that is five analogues of
+    one ethylurea-thiazole-oxadiazolone plus two of one azaindole -- seven of
+    ten compounds from two series, every one between 0.05 and 4 nM, while the
+    pool spans to 1 mM. Such a set answers "do our molecules beat
+    best-in-class" and nothing about chemotype or potency breadth.
+
+    "diverse" (default) round-robins across chemotypes, most potent first
+    within each, and skips a compound whose Murcko scaffold is already taken.
+    "potency" is the naive ranking, kept for when the limit is large enough
+    that selection stops mattering.
+    """
+    rows = sorted(rows, key=lambda r: float(r["standard_value_nM"]))
+    if not limit or len(rows) <= limit:
+        return rows
+    if mode == "potency":
+        return rows[:limit]
+
+    from rdkit import Chem
+    from rdkit.Chem.Scaffolds import MurckoScaffold
+
+    def scaffold(smiles: str) -> str:
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            return smiles
+        try:
+            return MurckoScaffold.MurckoScaffoldSmiles(mol=mol)
+        except Exception:  # noqa: BLE001 - odd valences; fall back to the whole molecule
+            return smiles
+
+    buckets: dict[str, list[dict]] = {}
+    for r in rows:
+        buckets.setdefault(r["chemotype"], []).append(r)
+    # Visit chemotypes best-first, so a limit smaller than the number of
+    # chemotypes still picks up the strongest ones.
+    order = sorted(buckets, key=lambda k: float(buckets[k][0]["standard_value_nM"]))
+
+    out: list[dict] = []
+    seen: set[str] = set()
+    while len(out) < limit:
+        progressed = False
+        for key in order:
+            if len(out) >= limit:
+                break
+            while buckets[key]:
+                cand = buckets[key].pop(0)
+                scaf = scaffold(cand["smiles"])
+                if scaf in seen:
+                    continue            # analogue of something already taken
+                seen.add(scaf)
+                out.append(cand)
+                progressed = True
+                break
+        if not progressed:
+            break
+
+    if len(out) < limit:
+        # Scaffold dedup exhausted the pool. Top up by potency rather than
+        # silently returning a shorter set than asked for.
+        taken = {r["inchikey"] for r in out}
+        for r in rows:
+            if len(out) >= limit:
+                break
+            if r["inchikey"] not in taken:
+                out.append(r)
+        log.info("scaffold dedup ran out of distinct series; topped up to %d "
+                 "by potency", len(out))
+
+    return sorted(out, key=lambda r: float(r["standard_value_nM"]))
+
+
 def build(out_dir: Path, max_per_target: int, max_compounds: int,
-          strict_chemotype: bool, page: int = PAGE) -> None:
+          strict_chemotype: bool, select_mode: str = "diverse",
+          page: int = PAGE) -> None:
     from rdkit import Chem, RDLogger
     RDLogger.DisableLog("rdApp.*")
 
@@ -354,19 +430,11 @@ def build(out_dir: Path, max_per_target: int, max_compounds: int,
                     "the full picture -- rerun with the same --cache-dir to "
                     "fill the gaps.", ", ".join(failed_targets))
 
-    rows = sorted(kept.values(), key=lambda r: float(r["standard_value_nM"]))
-
-    # Cap by potency. The full set is ~450 distinct compounds, and at 18.4
-    # dockings/h that is ~50 h against two receptors -- more than the panel run
-    # it is meant to calibrate. The reference set only has to span the potency
-    # range credibly, so take the most potent N.
-    if max_compounds and len(rows) > max_compounds:
-        log.info("capping %d compounds to the %d most potent "
-                 "(%.3g to %.3g nM); raise --max-compounds to widen",
-                 len(rows), max_compounds,
-                 float(rows[0]["standard_value_nM"]),
-                 float(rows[max_compounds - 1]["standard_value_nM"]))
-        rows = rows[:max_compounds]
+    pool = sorted(kept.values(), key=lambda r: float(r["standard_value_nM"]))
+    rows = select(pool, max_compounds, select_mode)
+    if len(rows) < len(pool):
+        log.info("selected %d of %d compounds by '%s'", len(rows), len(pool),
+                 select_mode)
 
     for i, r in enumerate(rows, 1):
         r["name"] = f"gyrb_known_{i:03d}"
@@ -465,7 +533,25 @@ def selftest() -> None:
     assert decide(unknown_scaffold, atpase, True)[2] is False, \
         "--strict-chemotype must require an allowlist match"
 
-    print("selftest OK: off-site binders excluded, assay evidence gates the rest")
+    # select(): at a small limit this is the experiment. Two analogues sharing
+    # a Murcko scaffold must not both be chosen while a distinct series waits.
+    pool = [
+        {"smiles": "CCNC(=O)Nc1ccc(-c2ccccc2)cc1", "chemotype": "urea",
+         "standard_value_nM": "1.0", "inchikey": "A"},
+        {"smiles": "CCNC(=O)Nc1ccc(-c2ccccc2C)cc1", "chemotype": "urea",
+         "standard_value_nM": "2.0", "inchikey": "B"},   # analogue of A
+        {"smiles": "O=c1ccc2ccccc2o1", "chemotype": "aminocoumarin",
+         "standard_value_nM": "500.0", "inchikey": "C"},
+    ]
+    picked = select(pool, 2, "diverse")
+    keys = {r["inchikey"] for r in picked}
+    assert keys == {"A", "C"}, f"diverse must span series, got {keys}"
+    assert {r["inchikey"] for r in select(pool, 2, "potency")} == {"A", "B"}, \
+        "potency mode must keep the naive ranking"
+    assert len(select(pool, 0, "diverse")) == 3, "limit 0 means no cap"
+
+    print("selftest OK: off-site binders excluded, assay gates the rest, "
+          "diverse selection spans series")
 
 
 def main() -> None:
@@ -484,11 +570,17 @@ def main() -> None:
                          "both 500 even when the service is healthy.")
     ap.add_argument("--max-per-target", type=int, default=2000,
                     help="cap on potency records pulled per ChEMBL target")
-    ap.add_argument("--max-compounds", type=int, default=60,
-                    help="keep only the N most potent after filtering "
-                         "(default 60 = ~120 dockings = ~6.5 h on two "
-                         "receptors; 0 for no cap, which is ~450 compounds "
-                         "and ~50 h)")
+    ap.add_argument("--max-compounds", type=int, default=10,
+                    help="size of the reference set (default 10 = 20 dockings "
+                         "= ~1 h on two receptors). 0 for no cap, which is "
+                         "~450 compounds and ~50 h. Cost is linear: ~2 "
+                         "dockings per compound at ~18.4 dockings/h.")
+    ap.add_argument("--select", choices=("diverse", "potency"),
+                    default="diverse",
+                    help="how to pick them. 'diverse' round-robins across "
+                         "chemotypes and skips repeated Murcko scaffolds. "
+                         "'potency' takes the strongest N, which at N=10 "
+                         "returns 7 compounds from 2 patent series.")
     ap.add_argument("--strict-chemotype", action="store_true",
                     help="require a match against the ATP-site scaffold "
                          "allowlist instead of accepting GyrB/ATPase assay "
@@ -511,7 +603,7 @@ def main() -> None:
     log.info("caching ChEMBL pages in %s", _CACHE)
 
     build(args.out_dir, args.max_per_target, args.max_compounds,
-          args.strict_chemotype, args.page)
+          args.strict_chemotype, args.select, args.page)
 
 
 if __name__ == "__main__":

@@ -144,9 +144,29 @@ wrong choice. Every row's `mechanism_evidence` column records which rule
 applied, and `gyrb_excluded.csv` holds the rejects with reasons — a good
 compound in there means the filter is too strict.
 
-**`--max-compounds` defaults to 60**, the most potent after filtering. Uncapped
-is ~450 compounds, which is ~900 dockings and **~50 h on two receptors** —
-more than the panel run it exists to calibrate.
+**`--max-compounds` defaults to 10** — 20 dockings, about 1 h on the two GyrB
+receptors. Cost is linear at ~2 dockings per compound. Uncapped is ~450
+compounds, ~900 dockings and **~50 h**, more than the panel run it exists to
+calibrate.
+
+**At N=10 the selection *is* the experiment, so it is not a potency ranking.**
+ChEMBL's sub-nM end for GyrB is two or three patent series. Taking the
+strongest 10 gives five analogues of one ethylurea–thiazole–oxadiazolone plus
+two of one azaindole — seven of ten compounds from two series, every one
+between 0.05 and 4 nM, while the pool spans to 1 mM. That answers "do our
+molecules beat best-in-class" and nothing about chemotype or potency breadth.
+
+`--select diverse` (the default) round-robins across chemotypes, most potent
+first within each, and skips any compound whose Murcko scaffold is already
+taken; if dedup exhausts the distinct series it tops up by potency rather than
+returning a short set. `--select potency` restores the naive ranking, which is
+reasonable only once N is large enough that selection stops mattering.
+
+**Two reference points come free and should not be re-docked.** The co-crystal
+ligands are already in `panel500_v1`'s redock control: 08B at −8.004 (3U2D) and
+4S4 at −7.970 (4ZVI). Quote those alongside the fetched set — they are the same
+receptors, the same Vina settings, and crystallographically confirmed to bind
+the pocket.
 
 The selftest asserts the parts that fail silently: that a fluoroquinolone stays
 excluded even under an ATPase assay and even when it also carries a urea, that

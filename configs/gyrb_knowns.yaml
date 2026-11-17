@@ -14,7 +14,9 @@
 # runs -- every stage manifest carries SHA-256 checksums for exactly this.
 run_name: gyrb_knowns_v1
 
-# Written by fetch_gyrb_actives.py, the 60 most potent compounds by default.
+# Written by fetch_gyrb_actives.py: 10 compounds by default, chosen to span
+# chemotypes rather than to be the 10 most potent (the sub-nM end of ChEMBL's
+# GyrB data is two patent series, so a potency ranking returns analogues).
 # Regenerate rather than hand-edit: the matching gyrb_actives.csv carries the
 # activity value, the assay, the chemotype and the mechanism_evidence rule for
 # every line here, which is what makes the selection auditable. Raising
