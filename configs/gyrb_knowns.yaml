@@ -14,9 +14,12 @@
 # runs -- every stage manifest carries SHA-256 checksums for exactly this.
 run_name: gyrb_knowns_v1
 
-# Written by fetch_gyrb_actives.py. Regenerate rather than hand-edit: the
-# matching gyrb_actives.csv carries the activity value, assay and chemotype
-# assignment for every line here, which is what makes the selection auditable.
+# Written by fetch_gyrb_actives.py, the 60 most potent compounds by default.
+# Regenerate rather than hand-edit: the matching gyrb_actives.csv carries the
+# activity value, the assay, the chemotype and the mechanism_evidence rule for
+# every line here, which is what makes the selection auditable. Raising
+# --max-compounds raises cost linearly: ~2 dockings per compound at
+# ~18.4 dockings/h.
 ligands_smi: /storage/users/kikolski/screening-dock/gyrb_actives.smi
 output_root: /storage/users/kikolski/screening-dock/results
 

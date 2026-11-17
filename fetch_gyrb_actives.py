@@ -30,8 +30,11 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import logging
+import random
+import re
 import sys
 import time
 import urllib.parse
@@ -42,12 +45,51 @@ log = logging.getLogger("fetch_gyrb")
 
 CHEMBL = "https://www.ebi.ac.uk/chembl/api/data"
 
+# Measured against the live service on 2026-11-17: it 500s in bursts lasting a
+# minute or two, fast-failing in ~5s, then recovers and answers in ~0.3s. Its
+# own /status.json endpoint 500s as well, so there is nothing to health-check
+# against. Hence patient retries rather than few, and a cache so an outage
+# part-way through does not discard the pages already fetched.
+#
+# Page size matters as much as the retries. limit=1000 (the documented maximum)
+# times out; 100 and 50 both 500 even outside an outage window; 25 works.
+PAGE = 25
+TIMEOUT = 120
+ATTEMPTS = 8
+BACKOFF = (5, 10, 20, 30, 45, 60, 60)   # between attempts, ~4.5 min of patience
+
+# Field selection. A full activity record carries large unused text, and asking
+# only for what the output CSV needs keeps each page inside the timeout.
+ACTIVITY_FIELDS = ("molecule_chembl_id,canonical_smiles,standard_type,"
+                   "standard_value,standard_units,assay_chembl_id,"
+                   "assay_description")
+TARGET_FIELDS = "target_chembl_id,pref_name,target_type,organism"
+
+
+class FetchError(RuntimeError):
+    """A request that stayed broken through every retry.
+
+    Deliberately not SystemExit. One dead (target, potency type) pair must not
+    throw away the pages that already succeeded, which is what the first
+    version did when Ki started 500ing after IC50 had been collected.
+    """
+
 # Subunit B entries specifically, not the GyrA/B complex: a complex-level
 # annotation cannot distinguish an ATP-site binder from a cleavage-complex
 # poison, which is the only distinction this script exists to make.
+#
+# Pinned as ChEMBL target IDs, not resolved from UniProt accessions. P66936 is
+# the accession BindingDB shows for S. aureus GyrB, but it maps to ZERO ChEMBL
+# targets -- an accession lookup therefore returned an empty S. aureus half
+# while looking like it had worked. Verified 2026-11-17 and re-derivable with:
+#
+#   .../target.json?pref_name__icontains=gyrase%20subunit%20B&limit=25
+#
+# which lists six, of which these two are the organisms this panel docks.
+# The accession is recorded for provenance only -- nothing is looked up by it.
 TARGETS = {
-    "P0AES6": "Escherichia coli",
-    "P66936": "Staphylococcus aureus",
+    "CHEMBL1826": ("Escherichia coli", "P0AES6"),
+    "CHEMBL1921666": ("Staphylococcus aureus", "P66936"),
 }
 
 # Potency types worth keeping. MIC measures whole-cell growth and Inhibition %
@@ -77,6 +119,21 @@ ATP_SITE_SMARTS = {
     # Pyridyl and ethyl ureas. Broadest pattern here, so it is checked last.
     "urea": "[NX3][CX3](=O)[NX3]",
 }
+
+# The strongest mechanism evidence is the assay, not the scaffold. 540 of the
+# records pulled on 2026-11-17 are dominated by descriptions like "Inhibition
+# of ATPase activity of Staphylococcus aureus GyrB" -- that measures the ATP
+# site directly, and a fluoroquinolone cannot inhibit GyrB ATPase at all.
+#
+# So the assay gates inclusion and the chemotype tag is descriptive. An
+# allowlist of hand-written scaffolds would reject most of this set: the modern
+# GyrB series (pyrimidinoindoles, thiazolopyridines, pyrazolo-oxadiazolones)
+# match none of the classical patterns above. --strict-chemotype restores
+# allowlist-only behaviour.
+# [\s-]* not \s*: ChEMBL writes "DNA gyrase-B" as well as "DNA gyrase B", and
+# a bare \s* silently dropped the hyphenated ones.
+ATP_SITE_ASSAY = re.compile(r"atpase|gyrase[\s-]*b|gyr[\s-]*b|subunit[\s-]*b",
+                            re.IGNORECASE)
 
 OFF_SITE_SMARTS = {
     # 4-oxo-1,4-dihydroquinoline-3-carboxylic acid: ciprofloxacin and every
@@ -111,7 +168,7 @@ def _compile(label: str, smarts_map: dict[str, str]) -> list[tuple[str, object]]
 
 
 def classify(mol) -> tuple[str, bool]:
-    """Return (chemotype, keep). The denylist wins over the allowlist."""
+    """Return (chemotype, matches_atp_allowlist). The denylist wins."""
     for name, patt in _compile("off", OFF_SITE_SMARTS):
         if mol.HasSubstructMatch(patt):
             return name, False
@@ -121,46 +178,108 @@ def classify(mol) -> tuple[str, bool]:
     return "unclassified", False
 
 
+def decide(mol, assay: str, strict: bool) -> tuple[str, str, bool]:
+    """Return (chemotype, why, keep).
+
+    Order of authority: an off-site scaffold excludes outright, a known
+    ATP-site scaffold includes, and otherwise the assay decides. `why` goes
+    into the CSV so every inclusion can be argued with individually.
+    """
+    chemotype, on_allowlist = classify(mol)
+    if chemotype in OFF_SITE_SMARTS:
+        return chemotype, "excluded: off-site chemotype", False
+    if on_allowlist:
+        return chemotype, "known ATP-site chemotype", True
+    if strict:
+        return chemotype, "excluded: no chemotype match (--strict-chemotype)", False
+    if ATP_SITE_ASSAY.search(assay or ""):
+        return chemotype, "GyrB/ATPase assay", True
+    return chemotype, "excluded: no chemotype match, assay not ATP-specific", False
+
+
 # --- ChEMBL ---------------------------------------------------------------
 
+_CACHE: Path | None = None
+
+
 def _get(path: str, **params) -> dict:
-    url = f"{CHEMBL}/{path}.json?{urllib.parse.urlencode(params)}"
-    for attempt in range(1, 4):
+    """One ChEMBL page, cached on disk and retried through an outage window.
+
+    Raises FetchError once patience runs out, so the caller can drop this one
+    page and keep everything else.
+    """
+    query = urllib.parse.urlencode(params)
+    url = f"{CHEMBL}/{path}.json?{query}"
+
+    cached = None
+    if _CACHE is not None:
+        key = hashlib.sha256(f"{path}?{query}".encode()).hexdigest()[:32]
+        cached = _CACHE / f"{path}_{key}.json"
+        if cached.exists():
+            try:
+                return json.loads(cached.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                cached.unlink()      # truncated by an interrupt; refetch
+
+    last = None
+    for attempt in range(1, ATTEMPTS + 1):
         try:
-            with urllib.request.urlopen(url, timeout=60) as fh:
-                return json.loads(fh.read())
-        except Exception as exc:  # noqa: BLE001 - network, retry then give up
-            if attempt == 3:
-                raise SystemExit(f"ChEMBL request failed: {url}\n{exc}") from exc
-            log.warning("retry %d for %s (%s)", attempt, path, exc)
-            time.sleep(2 * attempt)
-    raise AssertionError("unreachable")
+            with urllib.request.urlopen(url, timeout=TIMEOUT) as fh:
+                body = fh.read()
+            data = json.loads(body)
+            if cached is not None:
+                cached.write_bytes(body)
+            return data
+        except Exception as exc:  # noqa: BLE001 - any network/server fault retries
+            last = exc
+            if attempt == ATTEMPTS:
+                break
+            # Jitter so a rerun does not line its retries up with the last one.
+            pause = BACKOFF[min(attempt - 1, len(BACKOFF) - 1)]
+            pause += random.uniform(0, pause * 0.25)
+            log.warning("attempt %d/%d failed for %s (%s); waiting %.0fs",
+                        attempt, ATTEMPTS, path, exc, pause)
+            time.sleep(pause)
+
+    raise FetchError(f"{url}\n  gave up after {ATTEMPTS} attempts: {last}")
 
 
-def target_ids(accession: str) -> list[str]:
-    data = _get("target", target_components__accession=accession, limit=50)
-    ids = [t["target_chembl_id"] for t in data.get("targets", [])
-           if t.get("target_type") == "SINGLE PROTEIN"]
-    if not ids:
-        log.warning("no SINGLE PROTEIN target for %s", accession)
-    return ids
+def activities(target_chembl_id: str, limit: int, page: int = PAGE) -> list[dict]:
+    """Potency records carrying a structure, most potent first.
 
+    order_by=standard_value makes ChEMBL sort server-side, so the first pages
+    are already the most potent and paging can stop at `limit` instead of
+    pulling everything and sorting here.
 
-def activities(target_chembl_id: str, limit: int) -> list[dict]:
-    """Potency records carrying a structure, most potent first."""
+    A potency type that stays broken is logged and skipped. Losing Ki is worth
+    far less than losing the IC50 pages already in hand.
+    """
     rows: list[dict] = []
     for stype in POTENCY_TYPES:
+        got = 0
         offset = 0
-        while len(rows) < limit:
-            data = _get("activity", target_chembl_id=target_chembl_id,
-                        standard_type=stype, standard_units="nM",
-                        limit=1000, offset=offset)
-            batch = data.get("activities", [])
-            rows.extend(r for r in batch
-                        if r.get("canonical_smiles") and r.get("standard_value"))
-            if len(batch) < 1000:
+        while got < limit:
+            try:
+                data = _get("activity", target_chembl_id=target_chembl_id,
+                            standard_type=stype, standard_units="nM",
+                            only=ACTIVITY_FIELDS, order_by="standard_value",
+                            limit=page, offset=offset)
+            except FetchError as exc:
+                log.error("skipping %s/%s at offset %d: %s",
+                          target_chembl_id, stype, offset, exc)
                 break
-            offset += 1000
+            batch = data.get("activities", [])
+            usable = [r for r in batch
+                      if r.get("canonical_smiles") and r.get("standard_value")]
+            rows.extend(usable)
+            got += len(usable)
+            total = data.get("page_meta", {}).get("total_count")
+            if offset == 0 and total is not None:
+                log.info("  %s/%s: %s records available", target_chembl_id,
+                         stype, total)
+            if len(batch) < page:
+                break
+            offset += page
     rows.sort(key=lambda r: float(r["standard_value"]))
     return rows
 
@@ -168,12 +287,13 @@ def activities(target_chembl_id: str, limit: int) -> list[dict]:
 # --- main -----------------------------------------------------------------
 
 CSV_COLS = ["name", "chembl_id", "smiles", "inchikey", "heavy_atoms",
-            "chemotype", "standard_type", "standard_value_nM",
-            "target_uniprot", "target_organism", "assay_chembl_id",
-            "assay_description"]
+            "chemotype", "mechanism_evidence", "standard_type",
+            "standard_value_nM", "target_uniprot", "target_organism",
+            "assay_chembl_id", "assay_description"]
 
 
-def build(out_dir: Path, max_per_target: int, include_unclassified: bool) -> None:
+def build(out_dir: Path, max_per_target: int, max_compounds: int,
+          strict_chemotype: bool, page: int = PAGE) -> None:
     from rdkit import Chem, RDLogger
     RDLogger.DisableLog("rdApp.*")
 
@@ -183,43 +303,71 @@ def build(out_dir: Path, max_per_target: int, include_unclassified: bool) -> Non
     kept: dict[str, dict] = {}          # inchikey -> row, dedup across targets
     rejected: list[dict] = []
 
-    for accession, organism in TARGETS.items():
-        for tid in target_ids(accession):
-            acts = activities(tid, max_per_target)
-            log.info("%s (%s, %s): %d potency records",
-                     tid, accession, organism, len(acts))
-            for a in acts:
-                mol = Chem.MolFromSmiles(a["canonical_smiles"])
-                if mol is None:
-                    continue
-                key = Chem.MolToInchiKey(mol)
-                chemotype, keep = classify(mol)
-                row = {
-                    "name": "",
-                    "chembl_id": a.get("molecule_chembl_id", ""),
-                    "smiles": Chem.MolToSmiles(mol),
-                    "inchikey": key,
-                    "heavy_atoms": mol.GetNumHeavyAtoms(),
-                    "chemotype": chemotype,
-                    "standard_type": a.get("standard_type", ""),
-                    "standard_value_nM": a.get("standard_value", ""),
-                    "target_uniprot": accession,
-                    "target_organism": organism,
-                    "assay_chembl_id": a.get("assay_chembl_id", ""),
-                    "assay_description": (a.get("assay_description") or "")[:200],
-                }
-                if keep or (include_unclassified and chemotype == "unclassified"):
-                    prev = kept.get(key)
-                    if prev is None or (float(row["standard_value_nM"])
-                                        < float(prev["standard_value_nM"])):
-                        kept[key] = row     # most potent record per structure
-                else:
-                    rejected.append(row)
+    failed_targets: list[str] = []
+    for tid, (organism, accession) in TARGETS.items():
+        log.info("%s -- %s GyrB (UniProt %s)", tid, organism, accession)
+        acts = activities(tid, max_per_target, page)
+        log.info("%s: %d usable potency records", tid, len(acts))
+        if not acts:
+            # Either an outage or a target that no longer carries data. Both
+            # need saying: an empty half of the panel must not pass silently.
+            failed_targets.append(f"{tid} ({organism})")
+        for a in acts:
+            mol = Chem.MolFromSmiles(a["canonical_smiles"])
+            if mol is None:
+                continue
+            key = Chem.MolToInchiKey(mol)
+            assay = a.get("assay_description") or ""
+            chemotype, why, keep = decide(mol, assay, strict_chemotype)
+            row = {
+                "name": "",
+                "chembl_id": a.get("molecule_chembl_id", ""),
+                "smiles": Chem.MolToSmiles(mol),
+                "inchikey": key,
+                "heavy_atoms": mol.GetNumHeavyAtoms(),
+                "chemotype": chemotype,
+                "mechanism_evidence": why,
+                "standard_type": a.get("standard_type", ""),
+                "standard_value_nM": a.get("standard_value", ""),
+                "target_uniprot": accession,
+                "target_organism": organism,
+                "assay_chembl_id": a.get("assay_chembl_id", ""),
+                "assay_description": (a.get("assay_description") or "")[:200],
+            }
+            if keep:
+                prev = kept.get(key)
+                if prev is None or (float(row["standard_value_nM"])
+                                    < float(prev["standard_value_nM"])):
+                    kept[key] = row     # most potent record per structure
+            else:
+                rejected.append(row)
 
     if not kept:
-        raise SystemExit("no compounds survived the filter -- check the SMARTS")
+        raise SystemExit(
+            "no compounds survived the filter. If the log above shows ChEMBL "
+            "errors this is an outage, not a filter problem -- rerun with the "
+            "same --cache-dir and the fetched pages are reused. If the log is "
+            "clean, check the SMARTS with --selftest."
+        )
+    if failed_targets:
+        log.warning("INCOMPLETE: no data for %s. The set is usable but not "
+                    "the full picture -- rerun with the same --cache-dir to "
+                    "fill the gaps.", ", ".join(failed_targets))
 
     rows = sorted(kept.values(), key=lambda r: float(r["standard_value_nM"]))
+
+    # Cap by potency. The full set is ~450 distinct compounds, and at 18.4
+    # dockings/h that is ~50 h against two receptors -- more than the panel run
+    # it is meant to calibrate. The reference set only has to span the potency
+    # range credibly, so take the most potent N.
+    if max_compounds and len(rows) > max_compounds:
+        log.info("capping %d compounds to the %d most potent "
+                 "(%.3g to %.3g nM); raise --max-compounds to widen",
+                 len(rows), max_compounds,
+                 float(rows[0]["standard_value_nM"]),
+                 float(rows[max_compounds - 1]["standard_value_nM"]))
+        rows = rows[:max_compounds]
+
     for i, r in enumerate(rows, 1):
         r["name"] = f"gyrb_known_{i:03d}"
 
@@ -235,23 +383,35 @@ def build(out_dir: Path, max_per_target: int, include_unclassified: bool) -> Non
         w.writeheader()
         w.writerows(rows)
 
-    unclassified = [r for r in rejected if r["chemotype"] == "unclassified"]
-    with open(out_dir / "gyrb_unclassified.csv", "w", encoding="utf-8",
+    # Everything rejected, with the reason, so an over-strict filter is
+    # visible rather than invisible.
+    with open(out_dir / "gyrb_excluded.csv", "w", encoding="utf-8",
               newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=CSV_COLS)
         w.writeheader()
-        w.writerows(unclassified)
+        w.writerows(sorted(rejected,
+                           key=lambda r: float(r["standard_value_nM"])))
 
-    by_type: dict[str, int] = {}
-    for r in rows:
-        by_type[r["chemotype"]] = by_type.get(r["chemotype"], 0) + 1
-    log.info("kept %d compounds: %s", len(rows), by_type)
-    log.info("excluded %d off-site, %d unclassified (see gyrb_unclassified.csv)",
-             len(rejected) - len(unclassified), len(unclassified))
-    log.info("wrote %s", smi_path)
-    log.info("REVIEW gyrb_actives.csv before docking. The chemotype column is "
-             "an automated guess, and a wrong mechanism call is worse than a "
-             "missing compound.")
+    def tally(seq, field):
+        out: dict[str, int] = {}
+        for r in seq:
+            out[r[field]] = out.get(r[field], 0) + 1
+        return dict(sorted(out.items(), key=lambda kv: -kv[1]))
+
+    log.info("kept %d compounds", len(rows))
+    log.info("  by chemotype: %s", tally(rows, "chemotype"))
+    log.info("  by evidence : %s", tally(rows, "mechanism_evidence"))
+    log.info("excluded %d: %s", len(rejected),
+             tally(rejected, "mechanism_evidence"))
+    log.info("potency span: %.3g to %.3g nM",
+             float(rows[0]["standard_value_nM"]),
+             float(rows[-1]["standard_value_nM"]))
+    log.info("wrote %s and gyrb_actives.csv (+ gyrb_excluded.csv)", smi_path)
+    log.info("REVIEW gyrb_actives.csv before docking. mechanism_evidence says "
+             "why each compound is in; most will read 'GyrB/ATPase assay', "
+             "which is the assay measuring the ATP site directly. Skim "
+             "gyrb_excluded.csv too -- a good compound dropped there means "
+             "the filter is too strict.")
 
 
 def selftest() -> None:
@@ -285,7 +445,27 @@ def selftest() -> None:
     assert classify(mol) == ("fluoroquinolone", False), \
         "denylist must take precedence over the allowlist"
 
-    print("selftest OK: chemotype filter excludes off-site binders")
+    # decide(): the assay now gates inclusion, so these are the cases that
+    # determine what actually gets docked.
+    fq = Chem.MolFromSmiles("OC(=O)c1cn(C)c2ccccc2c1=O")
+    atpase = "Inhibition of ATPase activity of Staphylococcus aureus GyrB"
+    unknown_scaffold = Chem.MolFromSmiles(
+        "CNc1cc(F)cc2c1[nH]c1nc(Oc3cnc(C)nc3)nc(N3CCNCC3)c12")  # modern series
+
+    # An ATPase assay must NOT rescue an off-site chemotype.
+    assert decide(fq, atpase, False)[2] is False, \
+        "a fluoroquinolone must stay excluded whatever the assay says"
+    # A scaffold outside the allowlist is kept on assay evidence...
+    assert decide(unknown_scaffold, atpase, False)[2] is True, \
+        "GyrB ATPase assay evidence must admit an unlisted scaffold"
+    # ...but not when the assay is silent about mechanism...
+    assert decide(unknown_scaffold, "Antibacterial activity against E. coli",
+                  False)[2] is False, "a whole-cell MIC assay is not evidence"
+    # ...and not under --strict-chemotype.
+    assert decide(unknown_scaffold, atpase, True)[2] is False, \
+        "--strict-chemotype must require an allowlist match"
+
+    print("selftest OK: off-site binders excluded, assay evidence gates the rest")
 
 
 def main() -> None:
@@ -293,11 +473,27 @@ def main() -> None:
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out-dir", default=".", type=Path)
+    ap.add_argument("--cache-dir", type=Path, default=None,
+                    help="cache raw ChEMBL pages here (default: "
+                         "<out-dir>/.chembl_cache). ChEMBL 500s in bursts, so "
+                         "a rerun with the same cache resumes instead of "
+                         "refetching. Delete it to force fresh data.")
+    ap.add_argument("--page", type=int, default=PAGE,
+                    help=f"records per request (default {PAGE}). Larger pages "
+                         "time out or 500: limit=1000 times out, 50 and 100 "
+                         "both 500 even when the service is healthy.")
     ap.add_argument("--max-per-target", type=int, default=2000,
                     help="cap on potency records pulled per ChEMBL target")
-    ap.add_argument("--include-unclassified", action="store_true",
-                    help="also keep compounds matching no known chemotype "
-                         "(off by default: mechanism is the whole filter)")
+    ap.add_argument("--max-compounds", type=int, default=60,
+                    help="keep only the N most potent after filtering "
+                         "(default 60 = ~120 dockings = ~6.5 h on two "
+                         "receptors; 0 for no cap, which is ~450 compounds "
+                         "and ~50 h)")
+    ap.add_argument("--strict-chemotype", action="store_true",
+                    help="require a match against the ATP-site scaffold "
+                         "allowlist instead of accepting GyrB/ATPase assay "
+                         "evidence. Much stricter, and drops most modern "
+                         "GyrB series.")
     ap.add_argument("--selftest", action="store_true",
                     help="check the SMARTS filter and exit")
     ap.add_argument("--log-level", default="INFO")
@@ -308,7 +504,14 @@ def main() -> None:
     if args.selftest:
         selftest()
         return
-    build(args.out_dir, args.max_per_target, args.include_unclassified)
+
+    global _CACHE
+    _CACHE = args.cache_dir or (args.out_dir / ".chembl_cache")
+    _CACHE.mkdir(parents=True, exist_ok=True)
+    log.info("caching ChEMBL pages in %s", _CACHE)
+
+    build(args.out_dir, args.max_per_target, args.max_compounds,
+          args.strict_chemotype, args.page)
 
 
 if __name__ == "__main__":

@@ -103,15 +103,55 @@ python fetch_gyrb_actives.py --out-dir /storage/users/kikolski/screening-dock
 DOCKPIPE_CONFIG=$PWD/configs/gyrb_knowns.yaml sbatch run_all.slurm
 ```
 
-The selftest asserts a 4-oxoquinoline-3-carboxylate is rejected even when it
-also carries a urea. A denylist that silently matches nothing looks exactly
-like success and would put fluoroquinolones in the GyrB ATP box —
-fluoroquinolones and NBTIs such as gepotidacin bind the GyrA/DNA cleavage
-interface, not this pocket.
+**ChEMBL is unreliable and the script is built around that.** Measured
+2026-11-17: it 500s in bursts lasting a minute or two, fast-failing in ~5s,
+then recovers and answers in ~0.3s. Its own `/status.json` 500s too, so there
+is nothing to health-check. Consequences baked in:
 
-`chemotype` in the CSV is an automated guess, and a wrong mechanism call is
-worse than a missing compound. Unplaceable compounds go to
-`gyrb_unclassified.csv`, excluded by default.
+- `limit=1000` (the documented maximum) times out; 100 and 50 both 500 even
+  when healthy. Page size is **25**.
+- 8 attempts with exponential backoff, ~4.5 min of patience per page.
+- Pages cache to `<out-dir>/.chembl_cache`. **A rerun resumes** — a full fetch
+  is 26 pages and replays from cache in 0.00s. Delete the directory to force
+  fresh data.
+- A dead (target, potency type) pair is logged and skipped, not fatal. The
+  first version raised `SystemExit` and discarded the IC50 pages it already
+  had when Ki started 500ing.
+
+Verified against the live API: **540 potency records, 456 distinct compounds,
+0.05 nM to 1.08 mM**, fetched in 10 s once the service was responding.
+
+**Targets are pinned ChEMBL IDs, not UniProt lookups.** `CHEMBL1826`
+(*E. coli*) and `CHEMBL1921666` (*S. aureus*). P66936 — the accession
+BindingDB shows for *S. aureus* GyrB — maps to **zero** ChEMBL targets, so the
+original accession lookup returned an empty *S. aureus* half while appearing
+to work. Re-derive with
+`target.json?pref_name__icontains=gyrase%20subunit%20B`.
+
+**How inclusion is decided.** The assay is the evidence, not the scaffold: 540
+of 540 records carry descriptions like "Inhibition of ATPase activity of
+*S. aureus* GyrB", which measures the ATP site directly — a fluoroquinolone
+cannot inhibit GyrB ATPase. So:
+
+1. An off-site scaffold (fluoroquinolone, NBTI) excludes outright, whatever
+   the assay says.
+2. A known ATP-site scaffold includes.
+3. Otherwise the assay decides.
+
+`--strict-chemotype` requires an allowlist match instead, which drops most
+modern GyrB series (pyrimidinoindoles, thiazolopyridines) and is usually the
+wrong choice. Every row's `mechanism_evidence` column records which rule
+applied, and `gyrb_excluded.csv` holds the rejects with reasons — a good
+compound in there means the filter is too strict.
+
+**`--max-compounds` defaults to 60**, the most potent after filtering. Uncapped
+is ~450 compounds, which is ~900 dockings and **~50 h on two receptors** —
+more than the panel run it exists to calibrate.
+
+The selftest asserts the parts that fail silently: that a fluoroquinolone stays
+excluded even under an ATPase assay and even when it also carries a urea, that
+assay evidence admits an unlisted scaffold, that a whole-cell MIC assay does
+not, and that `--strict-chemotype` overrides all of it.
 
 Separate `run_name` (`gyrb_knowns_v1`), so it can run alongside step 2 if the
 partition allows two jobs.
