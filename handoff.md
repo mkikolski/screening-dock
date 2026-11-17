@@ -1,35 +1,201 @@
-# Handoff — 2026-11-03
+# Handoff — 2026-11-17
 
-**State: run complete and analysed; a LaTeX report exists but still needs real
-data.** Job 1994 finished 2026-10-18 22:44 on `serwer1`, commit `9770a4e`.
+**State: three follow-up runs are coded and committed, nothing submitted yet.**
+The original screen (job 1994, commit `9770a4e`, finished 2026-10-18 22:44 on
+`serwer1`) is complete and written up in `report/summary.pdf` from real data.
+The runs below exist because review found that report's headline confounded.
 
-**Pick up at step 1 below.** The PDF in `report/` currently builds from a
-synthetic fixture, so the numbers in it are not yours.
+**Pick up at step 0: `git push`.** 15 commits are local-only and the cluster
+pulls from the remote, so nothing run there has the new code until you do.
 
-## Next steps
+## Why these runs exist
 
-### 1. Build the real PDF (~10 min, blocks nothing else)
+The report said 0 of 492 molecules beat human DHFR. The number is real but its
+reading was never established, because the DHFR pair was not the controlled
+comparison the report claimed:
 
-Four files, pulled straight across. No git involved: `results/` and
-`report/data/` are both ignored, so result data never travels through the
-repo, and the commits were made on this machine so there is nothing to pull.
+- **7MYM** is 3.04 Å and holds **NAP** (NADP⁺, oxidised).
+- **2W3A** is 1.50 Å and holds **NDP** (NADPH, reduced).
+
+The pair differed in resolution *and* in cofactor oxidation state at once.
+Three things say the gap is a receptor artefact rather than selectivity:
+
+1. Four receptors — two folds, three proteins, both box sizes, cofactor and
+   none — cluster between −6.27 and −6.54 kcal/mol. **2W3A alone is −7.69.**
+2. The gap is **flat across ligand size**: +1.32 / +1.39 / +1.41 across
+   heavy-atom terciles, r(gap, heavy atoms) = 0.05. A pocket-fit effect would
+   grow with size. A constant offset is a baseline.
+3. **Trimethoprim runs the other way**: −7.638 at 7MYM against −7.423 at 2W3A.
+   Of 493 ligands docked into both, the single exception is the only one with
+   crystal evidence in both structures.
+
+Resolution also rank-correlates with mean score across the five receptors
+(ρ 0.70, or 0.40 with 2W3A dropped), pointing the same way.
+
+6XG5 separates the offset from the chemistry. 7MYM stays in the panel so the
+offset is measured rather than assumed away.
+
+| | 7MYM (keep) | **6XG5 (new)** | 2W3A (human) |
+|---|---|---|---|
+| resolution | 3.04 Å | **1.90 Å** | 1.50 Å |
+| cofactor | NAP (NADP⁺) | **NDP (NADPH)** | NDP (NADPH) |
+| ligand | TOP | TOP | TOP |
+| chains | A, B, C | **A only** | A, B |
+
+6XG5 is *E. coli* K-12 *folA*, 165 residues (160–165 an expression tag), also
+holding GOL and CL, both dropped. Manna et al., *Nat Commun* **12**:2949
+(2021), doi:10.1038/s41467-021-23191-z.
+
+## Runbook
+
+### 0. Push, then pull on the cluster
+
+```bash
+cd ~/mateusz-dock && git push -u origin master     # master has no upstream yet
+
+# on the cluster
+cd /storage/users/kikolski/screening-dock && git pull
+conda activate /storage/users/kikolski/envs/dockpipe
+```
+
+### 1. Check the molscrub signature (1 min, blocks step 2)
+
+molscrub 0.8.0 documents `num_etkdg_attempts` and `use_random_coords` as CLI
+flags but does not publish its Python signature. `_init_worker` raises rather
+than dropping them silently, so confirm the names first:
+
+```bash
+python -c "import inspect, molscrub; print(inspect.signature(molscrub.Scrub.__init__))"
+```
+
+Both present → go. Different → edit the two keys in `dockpipe/ligands.py:52-56`;
+the `RuntimeError` lists what is actually accepted.
+
+### 2. Panel run: 6XG5 plus the 8 recovered molecules (~27 h)
+
+```bash
+R=/storage/users/kikolski/screening-dock/results/panel500_v1
+cp $R/ligands/.ckpt_ligands.jsonl $R/ligands/.ckpt_ligands.jsonl.bak
+cp $R/manifests/receptors.json   $R/manifests/receptors.json.bak
+
+cd /storage/users/kikolski/screening-dock
+DOCKPIPE_RETRY_FAILED=1 sbatch run_all.slurm
+```
+
+One pass does both: the 8 are re-prepped first, then 6XG5 docks the full set.
+The five existing receptors report complete and are skipped.
+
+**Watch for this line early in the log.** It is the difference between
+recovering the 8 and silently not:
+
+```
+retry_failed: 8 non-ok records in .../.ckpt_ligands.jsonl will be redone
+```
+
+Missing → the env var did not reach the script and the losses stay lost.
+
+### 3. GyrB reference set (~6 h)
+
+```bash
+python fetch_gyrb_actives.py --selftest      # do not skip
+python fetch_gyrb_actives.py --out-dir /storage/users/kikolski/screening-dock
+# then READ gyrb_actives.csv before docking
+DOCKPIPE_CONFIG=$PWD/configs/gyrb_knowns.yaml sbatch run_all.slurm
+```
+
+The selftest asserts a 4-oxoquinoline-3-carboxylate is rejected even when it
+also carries a urea. A denylist that silently matches nothing looks exactly
+like success and would put fluoroquinolones in the GyrB ATP box —
+fluoroquinolones and NBTIs such as gepotidacin bind the GyrA/DNA cleavage
+interface, not this pocket.
+
+`chemotype` in the CSV is an automated guess, and a wrong mechanism call is
+worse than a missing compound. Unplaceable compounds go to
+`gyrb_unclassified.csv`, excluded by default.
+
+Separate `run_name` (`gyrb_knowns_v1`), so it can run alongside step 2 if the
+partition allows two jobs.
+
+**State the free result first when reporting this.** The co-crystal ligands
+redock at −8.004 (08B, 3U2D) and −7.970 (4S4, 4ZVI). The panel's best GyrB
+scores are −8.75 and −8.33. The generated molecules already out-score the real
+inhibitors, which is a calibration warning rather than a hit.
+
+## When the results land
+
+### Pull them
+
+`results/` and `report/data/` are both gitignored, so result data never travels
+through the repo. The login host is recorded nowhere here — fill it in below
+once known.
 
 ```bash
 cd ~/mateusz-dock && mkdir -p report/data
 R=<user>@<login-host>:/storage/users/kikolski/screening-dock/results/panel500_v1
-rsync -av "$R"/docking/{analysis/per_molecule.csv,redock_control.json,summary.json} \
+rsync -av "$R"/docking/{analysis/per_molecule.csv,scores_wide.csv,redock_control.json,summary.json} \
           "$R"/manifests/ligands.json  report/data/
 cd report && make venv && make      # make venv once: system python3 lacks pandas
 ```
 
-The four land flat in `report/data/`, which is what `make_report.py` expects
-(`data/per_molecule.csv`, not `data/analysis/...`). The login host is not
-recorded anywhere in this repo — add it above once it is known.
+Files land flat in `report/data/`, which is what `make_report.py` expects
+(`data/per_molecule.csv`, not `data/analysis/...`).
 
-Confirm it is real data, not the fixture: the near-miss table must show **9**
-rows and the selectivity table **0 / 492**. The fixture gives 7 and 8.
+### Checks, in order of what they would invalidate
 
-### 2. LLE, optional (~15 min of work)
+```bash
+# 1. The 5 existing receptors must be unchanged. Receptor prep is not
+#    checkpointed, so all six are re-prepared; prep is deterministic, so
+#    verify rather than assume. A change here invalidates every comparison
+#    with the first run.
+python - <<'PY'
+import json
+old = {r['name']: r.get('checksums') for r in json.load(open('manifests/receptors.json.bak'))}
+new = {r['name']: r.get('checksums') for r in json.load(open('manifests/receptors.json'))}
+for k in old: print(k, 'UNCHANGED' if old[k] == new[k] else '*** CHANGED ***')
+PY
+
+# 2. 6XG5 kept the right cofactor. This trap already bit once: the config
+#    named NDP where the entry held NAP, and the splitter dropped it silently.
+grep NDP receptors/dhfr_ecoli_6xg5/dhfr_ecoli_6xg5_cofactor.pdbqt | wc -l   # expect 48
+grep -c 'GOL\|CL ' receptors/dhfr_ecoli_6xg5/dhfr_ecoli_6xg5_clean.pdb      # expect 0
+
+# 3. 6XG5 redocks its own ligand, and the other five still do
+python -c "import json;[print(r['receptor'],round(r['rmsd_best'],2),r['best_pose_rank']) for r in json.load(open('docking/redock_control.json'))]"
+
+# 4. The denominator moved: 500 of 500 if all 8 recovered, 492+n otherwise
+python -c "import json;d=json.load(open('manifests/ligands.json'));print(d['n_ok'],'of',d['n_input'])"
+
+# 5. dhfr_selectivity means what it says -- both columns must be present
+head -1 docking/scores_wide.csv
+```
+
+### The number this was all for
+
+Median `selectivity_dhfr_ecoli_6xg5` against median
+`selectivity_dhfr_ecoli_7mym` in `scores_wide.csv`. Positive favours the
+bacterial enzyme; the original run gave −1.39 for 7MYM.
+
+| 6XG5 median | 7MYM median | reading |
+|---|---|---|
+| ≈ 0 | ≈ −1.39 | **The headline was receptor preparation.** The 0/492 was largely 2W3A's baseline, not selectivity. The report's conclusion needs rewriting, not updating. |
+| ≈ −1.39 | ≈ −1.39 | **The negative result survives a matched structure**, and is much stronger than before: same cofactor, 0.40 Å resolution gap, offset still there. |
+| in between | ≈ −1.39 | Part artefact, part real. Report both and quantify the split rather than picking one. |
+| anything at all, but 6XG5 redocks badly | — | Discount it. A receptor that cannot recover its own crystal pose cannot settle this. Run check 3 before reading the medians. |
+
+Recompute these too, because a fifth bacterial receptor changes them for
+structural rather than chemical reasons: `best_bacterial`, `margin_vs_human`,
+and the "36 of 492 beat human at some target" figure. Report the old and new
+panels side by side instead of silently replacing.
+
+### Report
+
+Agreed deliverable: regenerate `summary.pdf` with 6XG5 as the primary axis and
+7MYM retained as the offset control, **plus a one-page note listing which
+numbers moved and why**. The cofactor corrections to Table 1 and Methods are
+already committed — put them in that note rather than letting them pass
+silently, since they propped up the "same fold with the same cofactor" claim.
+
+## Still optional: LLE (~15 min of work, no docking)
 
 `target_choice.md` §7 asks for triage by LE **and** LLE; only LE exists.
 RDKit's Crippen estimator gives logP from the SMILES already in
@@ -59,9 +225,10 @@ and only FabL's 492 dockings run, about 27 h.
 
 ## The report
 
-`report/` builds a 4–5 page PDF: `make venv` once, then `make`. Sources are
+`report/` builds a 7-page PDF: `make venv` once, then `make`. Sources are
 tracked (`summary.tex`, `make_report.py`, `Makefile`); the data, figures and
-PDF are not.
+PDF are not. `report/notes.md` holds the per-section speaker notes — the
+detail deliberately kept out of the PDF.
 
 Nothing in the prose is typed by hand. `make_report.py` reads `analyze.py`'s
 output and emits `numbers.tex` (one macro per quantity), four complete
@@ -374,9 +541,31 @@ harmless. Per-receptor reports are in
   the panel.
 - The enrichment test (actives vs decoys) is a precondition the project set
   for itself and has not been run, so every target is formally provisional.
+  The GyrB reference run above is **not** that test: it is a positive-control
+  comparison with no decoys, so it gives no ROC AUC, EF1% or BEDROC. The full
+  test needs property-matched decoys and roughly 1–10 days of compute
+  depending on set size, and was deliberately scoped separately.
   FabL is dropped, not pending — if asked, the answer is that the isoform
   argument is described in the report as an extension and FabI stands on
   triclosan and afabicin instead.
-- The 8 `scrub_failed` molecules are listed in
-  `results/panel500_v1/manifests/ligands.json` under `failures`, if the
-  denominator ever needs defending.
+- The 8 `scrub_failed` molecules are being recovered by the step 2 run above.
+  Root cause: `n_scrub_attempts: 5` retried an identical deterministic `Scrub`
+  call five times while molscrub's own `num_etkdg_attempts` and
+  `use_random_coords` were never set — its error message named both knobs.
+  All eight have a quaternary carbon bonded directly to a trisubstituted
+  nitrogen, which over-determines the distance bounds around that bond; two
+  also carry strained fused bicyclics. They are 38–48 heavy atoms against a
+  panel median of 41, so this was never a size problem. If some still fail
+  after the retry, record that: it bounds what the generator can produce that
+  is embeddable at all. The originals remain in
+  `results/panel500_v1/manifests/ligands.json` under `failures`.
+- **If a rerun ever looks like a no-op, check this first.** `read_checkpoint`
+  treats a recorded failure as done unless `retry_failed=True`, on the stated
+  reasoning that failures are deterministic. That reasoning expired when the
+  `Scrub` call changed. `DOCKPIPE_RETRY_FAILED=1` is the opt-in, and the
+  `retry_failed:` log line is the proof it took effect.
+- **`primary_bacterial_dhfr` is now mandatory with two bacterial DHFRs.**
+  `merge_results.py` used to pick that column positionally, so
+  `dhfr_ecoli_6xg5` sorting before `dhfr_ecoli_7mym` would have repointed
+  `dhfr_selectivity` with no error and no warning. It now raises instead.
+  Adding a third bacterial DHFR means setting this key, not trusting the sort.
