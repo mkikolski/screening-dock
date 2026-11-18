@@ -42,6 +42,10 @@ docked against \nReceptors{} receptors: \nBacterial{} bacterial targets
 (\bacterialList) and human DHFR as a counter-screen.
 \nScrubFailed{} molecules were lost during ligand preparation, leaving
 \nMolecules{} molecules and \nDockings{} dockings, all of which completed.
+An earlier run of the same set lost eight, every one to conformer embedding
+rather than to chemistry; six were recovered by randomising the embedding
+start, and none of the six ranks among the panel's strongest at any target,
+so the loss was not concealing a hit population.
 
 No target was defined before generation, so the receptors were selected
 retrospectively and the question below is whether the set is chemically and
@@ -57,6 +61,16 @@ bacterial enzyme}. The median difference is
 \selDhfrMedian{}~kcal\,mol$^{-1}$ in favour of the human enzyme, and the
 upper quartile is \selDhfrQHi{}, so the whole distribution lies on the same
 side.
+
+That conclusion does not rest on which bacterial structure was chosen, which
+is the obvious way for it to be an artefact rather than a result. The panel
+retains the structure the screen started from, \offsetControl{}, which differs
+from its human counterpart in resolution and in cofactor oxidation state at
+once.
+Over the \nDhfrCommon{} molecules scored at both, matching those two
+properties moves the median difference only from \offsetControlMedian{} to
+\offsetPrimaryMedian{}~kcal\,mol$^{-1}$: a shift of \offsetShift{}, or
+\offsetPct\% of the gap (\S\ref{sec:offset}).
 
 Widening the comparison to the best of any bacterial target,
 \selAnyN{}~molecules (\selAnyPct\%) beat human DHFR at some target,
@@ -157,7 +171,8 @@ it was presented as, and a rigid receptor scored every molecule in the panel
 about 1.4~kcal\,mol$^{-1}$ more strongly at the human structure regardless of
 ligand size. 6XG5 was added to separate that offset from the chemistry: it is
 the same enzyme with the same inhibitor and the same reduced cofactor at
-1.90~\AA. Both are reported, 7MYM as the control on the offset itself.
+1.90~\AA. Both are reported, 7MYM as the control on the offset itself
+(\S\ref{sec:offset}).
 
 \begin{table}[tb]
 \centering
@@ -234,7 +249,39 @@ every bacterial target in the panel.}
 \label{fig:rec}
 \end{figure}
 
+\subsection{Dependence on the bacterial structure}
+\label{sec:offset}
+
+Every bacterial target in the panel scores the set within a narrow band and
+human DHFR alone sits clear of them (Figure~\ref{fig:rec}), a gap that does
+not track ligand size (\S\ref{sec:le}). A uniform offset of that shape is
+what receptor preparation produces as readily as what pocket discrimination
+produces, and the pair this screen started from invited the first reading:
+7MYM differs from its human counterpart in resolution and in cofactor
+oxidation state at once.
+
+6XG5 removes both differences. Over the \nDhfrCommon{} molecules scored at
+both bacterial structures, the median difference against human DHFR is
+\offsetControlMedian{}~kcal\,mol$^{-1}$ at \offsetControl{} and
+\offsetPrimaryMedian{} at \bactDhfr{} --- a shift of \offsetShift{}, or
+\offsetPct\% of the gap. \offsetControlN{} molecules favour the bacterial
+enzyme at the mismatched structure against \offsetPrimaryN{} at the matched
+one. Figure~\ref{fig:sel} shows the two distributions on the same axis.
+
+Resolution and cofactor oxidation state therefore account for a small part of
+the offset, and the selectivity result does not depend on either. What they do
+not explain is why a 1.90~\AA{} structure of the same enzyme, holding the same
+inhibitor and the same reduced cofactor, still scores every molecule in the
+panel more weakly than the human orthologue. Ligand size is already ruled out
+(\S\ref{sec:le}). What remains is the pocket, and that possibility cuts
+against the panel rather than against the method: a set of large, lipophilic
+molecules will score a roomier and more hydrophobic site more strongly, and
+Vina rewards buried hydrophobic surface. This screen cannot separate that from
+a residual preparation artefact; an actives-versus-decoys enrichment run at
+both structures would (\S\ref{sec:scope}).
+
 \subsection{Ligand efficiency}
+\label{sec:le}
 
 The strongest ligand efficiency in the panel is \leBest{} at
 \leBestTarget. Among the bacterial targets the best is \leBestBacterial{} at
@@ -339,6 +386,11 @@ position in Vina's ordering.}
 \item The orthologue comparison is the one this data supports directly.
 Comparisons between folds are weaker, because Vina scores rank ligands at one
 site rather than comparing affinities between unrelated sites.
+\item The orthologue result survives the structural confound it was most
+exposed to: matching the bacterial structure to the human one on resolution
+and cofactor oxidation state changes the median difference by \offsetPct\%
+(\S\ref{sec:offset}). Why the human structure scores the whole panel more
+strongly is not settled here.
 \item FabI \textit{S.\,aureus} and GyrB \textit{E.\,coli} do not place the
 crystal pose first, so their scores carry less weight than the other three.
 The margins in \S\ref{sec:nearmiss} fall almost entirely on FabI.
