@@ -107,11 +107,37 @@ def main() -> None:
     per_mol["best_bacterial_target"] = scores[bact].idxmin(axis=1)
     per_mol["margin_vs_human"] = scores[human_col] - per_mol["best_bacterial"]
 
-    dhfr_bact = [c for c in bact if "dhfr" in c]
+    dhfr_bact = sorted(c for c in bact if "dhfr" in c)
+    primary_dhfr = None
     if dhfr_bact:
-        # Like-for-like: same fold, same cofactor, both passed redocking, so
-        # this is the one cross-target comparison the data really supports.
-        per_mol["dhfr_selectivity"] = scores[human_col] - scores[dhfr_bact[0]]
+        # Like-for-like: same fold, both passed redocking, so this is the one
+        # cross-target comparison the data really supports. One column per
+        # bacterial DHFR, so a structure matched to the human counterpart and
+        # an unmatched one stay visible side by side rather than collapsing
+        # into a single number -- that contrast IS the offset test.
+        for b in dhfr_bact:
+            per_mol[f"selectivity_{b}"] = scores[human_col] - scores[b]
+
+        # This used to be scores[dhfr_bact[0]], chosen by column order. Adding
+        # a second bacterial DHFR silently repointed dhfr_selectivity at the
+        # new receptor and every number in the report inherited it, with no
+        # error and no warning. merge_results.py carries the same contract;
+        # per_molecule.csv is what report/make_report.py actually reads, so
+        # the guard has to exist in both places.
+        primary_dhfr = cfg.primary_bacterial_dhfr
+        if primary_dhfr is None:
+            if len(dhfr_bact) > 1:
+                raise SystemExit(
+                    f"{len(dhfr_bact)} bacterial DHFR receptors in this run "
+                    f"({', '.join(dhfr_bact)}) but primary_bacterial_dhfr is "
+                    "unset. Set it in the config: dhfr_selectivity must not be "
+                    "chosen by column order.")
+            primary_dhfr = dhfr_bact[0]
+        elif primary_dhfr not in dhfr_bact:
+            raise SystemExit(
+                f"primary_bacterial_dhfr={primary_dhfr!r} is not a bacterial "
+                f"DHFR column in this run. Available: {', '.join(dhfr_bact)}")
+        per_mol["dhfr_selectivity"] = per_mol[f"selectivity_{primary_dhfr}"]
 
     if heavy is not None:
         per_mol["heavy_atoms"] = heavy
@@ -121,9 +147,10 @@ def main() -> None:
     ]
 
     print(f"\n--- Selectivity vs {human_col} ---")
-    for label, col in [("any bacterial target", "margin_vs_human"),
-                       (f"{dhfr_bact[0] if dhfr_bact else 'n/a'} (like-for-like)",
-                        "dhfr_selectivity")]:
+    rows = [("any bacterial target", "margin_vs_human")]
+    rows += [(f"{b} (like-for-like)" + (" [primary]" if b == primary_dhfr else ""),
+              f"selectivity_{b}") for b in dhfr_bact]
+    for label, col in rows:
         if col not in per_mol:
             continue
         v = per_mol[col].dropna()

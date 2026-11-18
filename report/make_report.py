@@ -257,15 +257,38 @@ def style() -> None:
     })
 
 
-def fig_selectivity(df: pd.DataFrame, bact_dhfr: str, out: Path) -> None:
+def fig_selectivity(df: pd.DataFrame, bact_dhfr: str, out: Path,
+                    control: str | None = None) -> None:
     v = df["dhfr_selectivity"].dropna()
+    ctrl_col = f"selectivity_{control}" if control else None
+    overlay = bool(ctrl_col and ctrl_col in df)
     fig, ax = plt.subplots(figsize=(5.4, 2.4))
-    ax.hist(v, bins=36, color=BLUE, edgecolor="white", linewidth=0.4)
+
+    bins: object = 36
+    if overlay:
+        # Both bacterial DHFRs on one axis, sharing bins. The argument of the
+        # figure is that a structure matched to the human one on resolution and
+        # cofactor oxidation state gives the same distribution as a mismatched
+        # one, which is only legible if the two histograms are comparable.
+        c = df[ctrl_col].dropna()
+        bins = np.linspace(min(v.min(), c.min()), max(v.max(), c.max()), 37)
+        ax.hist(c, bins=bins, histtype="step", color=GREY, linewidth=1.1,
+                label=f"{PLAIN.get(control, control)}   "
+                      f"median {c.median():+.2f}")
+    ax.hist(v, bins=bins, color=BLUE, edgecolor="white", linewidth=0.4,
+            zorder=0,
+            label=(f"{PLAIN.get(bact_dhfr, bact_dhfr)}   "
+                   f"median {v.median():+.2f}") if overlay else None)
     ax.axvline(0, color=RED, lw=1.4, ls="--", label="no preference")
-    ax.axvline(v.median(), color=GREEN, lw=1.4,
-               label=f"median {v.median():+.2f}")
-    ax.set_xlabel(f"score(DHFR human) $-$ score({PLAIN.get(bact_dhfr, bact_dhfr)})"
-                  r"   /  kcal mol$^{-1}$")
+    if overlay:
+        ax.set_ylim(top=ax.get_ylim()[1] * 1.28)   # headroom for the legend
+        ax.set_xlabel(r"score(DHFR human) $-$ score(DHFR $E.\ coli$)"
+                      r"   /  kcal mol$^{-1}$")
+    else:
+        ax.axvline(v.median(), color=GREEN, lw=1.4,
+                   label=f"median {v.median():+.2f}")
+        ax.set_xlabel(f"score(DHFR human) $-$ score({PLAIN.get(bact_dhfr, bact_dhfr)})"
+                      r"   /  kcal mol$^{-1}$")
     ax.set_ylabel("molecules")
     ax.annotate(r"favours bacterial $\rightarrow$", xy=(0.99, 0.86),
                 xycoords="axes fraction", ha="right", fontsize=8, color=RED)
@@ -344,7 +367,25 @@ def main() -> None:
     recs = [c for c in df.columns if c in summary["per_receptor"]]
     human = next(c for c in recs if HUMAN_KEY in c)
     bact = [c for c in recs if c != human]
-    bact_dhfr = next((c for c in bact if "dhfr" in c), None)
+    # Which bacterial DHFR dhfr_selectivity actually refers to. analyze.py
+    # emits one selectivity_<receptor> column per bacterial DHFR plus the
+    # headline copy, so the answer is in the data and needs no config -- and
+    # picking it by column order is exactly what would mislabel the headline
+    # once a second bacterial DHFR exists.
+    dhfr_recs = sorted(c for c in bact if "dhfr" in c)
+    bact_dhfr = None
+    if "dhfr_selectivity" in df:
+        bact_dhfr = next(
+            (b for b in dhfr_recs
+             if f"selectivity_{b}" in df
+             and df[f"selectivity_{b}"].equals(df["dhfr_selectivity"])), None)
+    if bact_dhfr is None and len(dhfr_recs) == 1:
+        bact_dhfr = dhfr_recs[0]
+    if bact_dhfr is None and dhfr_recs:
+        raise SystemExit(
+            f"cannot tell which of {', '.join(dhfr_recs)} dhfr_selectivity "
+            "refers to. Re-run analyze.py so per_molecule.csv carries the "
+            "selectivity_<receptor> columns.")
     print(f"  {len(df)} molecules, {len(recs)} receptors, human = {human}")
 
     m = Macros()
@@ -380,6 +421,25 @@ def main() -> None:
         m.add(f"sel{key}Median", signed(v.median()))
         m.add(f"sel{key}QLo", signed(v.quantile(.25)))
         m.add(f"sel{key}QHi", signed(v.quantile(.75)))
+
+    # The offset test. The matched and the unmatched bacterial DHFR, compared
+    # over the molecules scored at both, plus the shift between them: how much
+    # of the human-vs-bacterial gap was resolution and cofactor state rather
+    # than the pocket.
+    others = [b for b in dhfr_recs if b != bact_dhfr]
+    if bact_dhfr and len(others) == 1 and all(
+            f"selectivity_{b}" in df for b in (bact_dhfr, *others)):
+        ctrl = others[0]
+        pair = df[[f"selectivity_{bact_dhfr}", f"selectivity_{ctrl}"]].dropna()
+        prim_v, ctrl_v = (pair[f"selectivity_{r}"] for r in (bact_dhfr, ctrl))
+        m.add("nDhfrCommon", len(pair))
+        m.add("offsetControl", pretty(ctrl))
+        m.add("offsetPrimaryMedian", signed(prim_v.median()))
+        m.add("offsetControlMedian", signed(ctrl_v.median()))
+        m.add("offsetPrimaryN", int((prim_v > 0).sum()))
+        m.add("offsetControlN", int((ctrl_v > 0).sum()))
+        m.add("offsetShift", signed(prim_v.median() - ctrl_v.median()))
+        m.add("offsetPct", f"{100 * abs(prim_v.median() - ctrl_v.median()) / abs(ctrl_v.median()):.0f}")
 
     le_by_rec = {k: v["le_max"] for k, v in summary["per_receptor"].items()}
     best_rec = max(le_by_rec, key=le_by_rec.get)
@@ -425,7 +485,8 @@ def main() -> None:
 
     style()
     if bact_dhfr:
-        fig_selectivity(df, bact_dhfr, out / "figures" / "selectivity.pdf")
+        fig_selectivity(df, bact_dhfr, out / "figures" / "selectivity.pdf",
+                        control=others[0] if len(others) == 1 else None)
     fig_receptors(df, recs, human, out / "figures" / "receptors.pdf")
     fig_efficiency(df, near, out / "figures" / "efficiency.pdf")
     print("  figures/         3 PDFs")
