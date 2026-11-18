@@ -59,8 +59,8 @@ state and within 0.40~\AA{} on resolution, both validated by redocking ---
 \textbf{\selDhfrN{} of \nMolecules{} molecules score better against the
 bacterial enzyme}. The median difference is
 \selDhfrMedian{}~kcal\,mol$^{-1}$ in favour of the human enzyme, and the
-upper quartile is \selDhfrQHi{}, so the whole distribution lies on the same
-side.
+upper quartile is \selDhfrQHi{}, so three quarters of the set sits at least
+that far onto the human side.
 
 That conclusion does not rest on which bacterial structure was chosen, which
 is the obvious way for it to be an artefact rather than a result. The panel
@@ -202,13 +202,14 @@ structural support \\
 \end{tabular}
 \end{table}
 
-A sixth receptor would extend the panel rather than complete it.
+A seventh receptor would extend the panel rather than complete it.
 \textit{B.\,subtilis} FabL (3OID, 1.80~\AA) is NADPH-dependent where FabI is
 NADH-dependent, and it is the triclosan resistance determinant in that
 organism~\cite{kim2011, heath2000}. FabI against FabL would ask about
 antibacterial spectrum the way the DHFR pair asks about host selectivity. It
-costs wall time and nothing else: checkpointing means the five existing
-receptors report as complete and only FabL's \nMolecules{} dockings run.
+costs wall time and nothing else: checkpointing means the six existing
+receptors report as complete and only FabL's \nMolecules{} dockings run,
+which is how 6XG5 was added to this run.
 
 \section{Result}
 \label{sec:result}
@@ -217,8 +218,8 @@ receptors report as complete and only FabL's \nMolecules{} dockings run.
 
 Table~\ref{tab:selectivity} gives both comparisons. Figure~\ref{fig:sel}
 shows the orthologue difference per molecule: the distribution lies almost
-entirely on the side favouring the human enzyme, and its upper tail does not
-cross zero. Figure~\ref{fig:rec} shows the same effect as score
+entirely on the side favouring the human enzyme, with \selDhfrN{} of
+\nMolecules{} molecules crossing zero. Figure~\ref{fig:rec} shows the same effect as score
 distributions, with human DHFR shifted towards stronger binding than all
 \nBacterial{} bacterial targets.
 
@@ -236,7 +237,7 @@ comparison the data supports directly. The second spans different folds.}
 \centering
 \includegraphics[width=0.86\linewidth]{figures/selectivity}
 \caption{Per-molecule difference between the human and \textit{E.\,coli} DHFR
-scores. Values right of the dashed line would favour the bacterial enzyme.}
+scores. Values right of the dashed line favour the bacterial enzyme.}
 \label{fig:sel}
 \end{figure}
 
