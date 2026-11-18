@@ -34,6 +34,7 @@ against \nBacterial{} bacterial targets and human DHFR}
 \begin{document}
 \maketitle
 \vspace{-0.8cm}
+\provisionalnote
 
 \section{Summary}
 
@@ -471,6 +472,71 @@ position in Vina's ordering.}
 \input{tables/receptors}
 \end{table}
 
+\section{What these scores support}
+\label{sec:direction}
+
+The reference set separates two abilities a docking score is usually assumed
+to have together, and what the panel's result means depends on which of them
+is in use.
+
+\textbf{As a classifier the score works.} Ranking the \nKnowns{} reference
+inhibitors against the \nMolecules{} generated molecules as presumed-inactive
+decoys gives an area under the ROC curve of \knownsAucLo{}--\knownsAucHi{} at
+the two GyrB receptors, with \knownsEfLo--\knownsEfHi-fold enrichment in the
+top 1\%. That is not a size artefact: the reference compounds are slightly
+\emph{smaller} than the panel (median \knownsHeavyMedian{} heavy atoms
+against \heavyMedian), heavy-atom count alone separates the two sets with an
+area of \knownsAucNull{} --- worse than chance --- and matching ten decoys to
+each reference compound on heavy-atom count leaves the area at
+\knownsAucMatchedLo{}.
+
+\textbf{As a measure of potency it does not.} Within the reference set the
+rank correlation between log potency and score is \knownsSpearmanLo{} and
+\knownsSpearmanHi{} (\S\ref{sec:knowns}). A score that separates binders from
+non-binders but does not order binders is a filter, not a quantity to
+optimise against.
+
+This reframes the panel's own scores. The set was generated under an ADMET
+multi-parameter objective carrying no receptor term of any kind, so its GyrB
+median is what a model that never saw the pocket produces: a baseline for the
+absence of structural information rather than a failure to find binders. Read
+that way the screen is informative in a different direction than it was
+designed for. It establishes, on this pipeline and against real inhibitors,
+what the score is worth.
+
+\textbf{Direction.} The generator is a synthesis-aware GFlowNet: it samples
+in proportion to a reward rather than maximising it, and assembles molecules
+only from purchasable blocks through reaction templates~\cite{rxnflow}. Both
+properties blunt the standard objection to a docking reward, that an
+optimiser escapes into high-scoring molecules nobody can make, and published
+runs of this architecture with a docking reward reach average scores close to
+the range the reference inhibitors occupy here. Conditioning the generator on
+the docking score is therefore the direction this work supports, under four
+constraints that follow from the results above.
+
+\begin{itemize}\setlength{\itemsep}{0.2em}
+\item \textbf{Saturate the reward} at the strongest reference score. Past
+that point the score is no longer tracking anything the reference set can
+vouch for, so further gain is bought in an unmeasured quantity.
+\item \textbf{Reward on 3U2D, not 4ZVI.} 4ZVI recovers its crystal pose among
+the nine retained but ranks it fifth, placing an unrelated pose first
+(\S\ref{sec:methods}); its ordering is the least trustworthy in the panel.
+3U2D reproduces its crystal pose first.
+\item \textbf{Re-calibrate under the production docking engine.} Every number
+here comes from AutoDock Vina at exhaustiveness 32. A faster engine inside a
+training loop is a different scorer, and the separation above must be
+re-measured on it before it can be trusted as a reward.
+\item \textbf{Keep human DHFR as a counter-objective.} The offset in
+\S\ref{sec:offset} indicates this chemotype is rewarded for filling a roomier
+pocket rather than for discriminating between pockets. Optimising a bacterial
+score alone would amplify precisely that.
+\end{itemize}
+
+Such a run should deliver a large, diverse, synthesisable set whose docking
+scores are indistinguishable from those of known ATP-site inhibitors. It will
+not deliver an ordering within that set, for the reason given above. Triaging
+the output needs an orthogonal filter, and the docking score cannot be it.
+
 \section{Scope}
 \label{sec:scope}
 
@@ -490,8 +556,10 @@ The margins in \S\ref{sec:nearmiss} fall almost entirely on FabI.
 config rather than reusing the panel's files. Preparation is deterministic
 and the settings are identical, but the two runs' receptor checksums were not
 compared, so a difference in receptor preparation is not formally excluded.
-\item No actives-versus-decoys enrichment test has been run, so by the
-project's own selection criteria every target here remains provisional.
+\item The enrichment estimate in \S\ref{sec:direction} uses the generated
+panel as decoys. They are untested rather than verified inactives, and are
+matched to the reference compounds on size alone, so it is an estimate and
+not a benchmark result.
 \item Vina scores are a ranking device, not predicted binding free energies,
 and no experimental measurement is involved at any point~\cite{warren2006}.
 \end{itemize}
@@ -566,6 +634,10 @@ bindings. \textit{J.\ Chem.\ Inf.\ Model.} \textbf{61} (2021) 3891.
 \bibitem{hopkins2004} Hopkins A.L., Groom C.R., Alex A. Ligand efficiency: a
 useful metric for lead selection. \textit{Drug Discov.\ Today} \textbf{9}
 (2004) 430.
+
+\bibitem{rxnflow} Seo S., Kim M., Shen T., Ester M., Park J., Ahn S.,
+Kim W.Y. Generative flows on synthetic pathway for drug design.
+\textit{ICLR} (2025). arXiv:2410.04542.
 
 \bibitem{warren2006} Warren G.L. \textit{et al.} A critical assessment of
 docking programs and scoring functions. \textit{J.\ Med.\ Chem.} \textbf{49}
