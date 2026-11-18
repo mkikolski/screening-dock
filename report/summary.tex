@@ -348,6 +348,76 @@ abbreviated to seed/serial, with full names in the result CSVs.}
 \input{tables/nearmiss}
 \end{table}
 
+\subsection{Known GyrB inhibitors as a reference}
+\label{sec:knowns}
+
+Nothing in the panel carries a measured activity, so its scores have no
+external scale: a Vina score is a ranking device, and a ranking has no units
+until something of known potency sits on it. \nKnowns{} published GyrB
+ATP-site inhibitors were docked through the identical pipeline --- the same
+two receptors, the same boxes, the same Vina settings, in a separate run so
+that they never enter the panel's own distributions --- to supply one. They
+span \nKnownsChemotypes{} chemotypes and
+\knownsPotencyLo{}--\knownsPotencyHi{}~nM, and were selected on assay
+evidence rather than on scaffold resemblance (\S\ref{sec:methods}).
+
+Table~\ref{tab:knowns} places the panel against them and
+Figure~\ref{fig:knowns} shows the distributions. The reference compounds sit
+roughly 2~kcal\,mol$^{-1}$ stronger than the panel's median at both
+receptors.
+\knownsReachGyrbSaureus\% of the panel reaches the range the reference
+compounds occupy at \textit{S.\,aureus} GyrB and
+\knownsReachGyrbEcoli\% at \textit{E.\,coli} GyrB;
+\knownsBeatBestGyrbSaureus{} and \knownsBeatBestGyrbEcoli{} molecules
+respectively out-score the strongest reference compound.
+
+This also settles a reading the panel invites on its own. Its best GyrB
+scores exceed both co-crystal ligands, which in isolation looks like evidence
+that the scoring function is too generous to this chemotype. It is not: the
+reference set shows genuine nanomolar inhibitors spread about
+1~kcal\,mol$^{-1}$ either side of those co-crystal values, so out-scoring one
+of them carries no information. The informative comparison runs the other
+way, and the panel loses it.
+
+One limit has to be read with the table. Within the reference set the score
+does not track potency: the rank correlation between log potency and score is
+\knownsSpearmanLo{} and \knownsSpearmanHi{} at the two receptors --- the
+wrong sign in both cases --- across a \knownsPotencyFold-fold potency range
+compressed into at most \knownsScoreSpan~kcal\,mol$^{-1}$ of score. At
+\nKnowns{} compounds that is not a significant result, but neither is it
+evidence of ranking power. The reference set therefore calibrates the score
+range an ATP-site binder occupies, and nothing finer. A panel molecule
+reaching that range is chemotypically plausible, not predicted to be potent.
+
+\begin{table}[tb]
+\centering
+\caption{The panel against \nKnowns{} published GyrB ATP-site inhibitors
+docked through the same pipeline. Scores are kcal\,mol$^{-1}$, stronger
+binding more negative.}
+\label{tab:knowns}
+\small
+\input{tables/knowns}
+\end{table}
+
+\begin{figure}[tb]
+\centering
+\includegraphics[width=0.96\linewidth]{figures/knowns}
+\caption{Panel score distributions at the two GyrB receptors, with each
+reference inhibitor marked. The panel's bulk lies well to the right of the
+reference compounds.}
+\label{fig:knowns}
+\end{figure}
+
+\begin{table}[tb]
+\centering
+\caption{The reference set. Chemotype is assigned by substructure;
+``unclassified'' marks a compound admitted on assay evidence alone. Potency
+is as reported by ChEMBL.}
+\label{tab:knownscomp}
+\small
+\input{tables/knowns_compounds}
+\end{table}
+
 \section{Methods and validation}
 \label{sec:methods}
 
@@ -369,6 +439,20 @@ perceived from coordinates. The gate is recovery of the crystal pose within
 \nRedockGate{} of \nRedockTotal{} receptors pass. The rank at which that pose appears is
 reported separately, as a per-receptor confidence weight rather than a
 pass/fail criterion: \nRedockPass{} of \nRedockTotal{} also place it first.
+
+The reference set in \S\ref{sec:knowns} was taken from ChEMBL at two pinned
+target identifiers rather than by UniProt lookup, because the UniProt
+accession for \textit{S.\,aureus} GyrB maps to no ChEMBL target and that half
+of the set would otherwise have been silently empty. Inclusion is decided by
+assay: a compound measured in a GyrB or ATPase assay is in, a compound
+carrying a fluoroquinolone or NBTI scaffold is excluded outright whatever its
+assay says, because those bind the GyrA/DNA interface and not the ATP pocket.
+The \nKnowns{} compounds were then chosen to span chemotypes rather than by
+potency, taking the most potent member of each chemotype in turn and skipping
+any compound whose Murcko scaffold was already represented: the sub-nanomolar
+end of ChEMBL's GyrB data is a small number of patent series, so a plain
+potency ranking returns analogues. The rule applied to each compound is
+recorded alongside it.
 
 \begin{table}[tb]
 \centering
@@ -395,6 +479,10 @@ strongly is not settled here.
 \item FabI \textit{S.\,aureus} and GyrB \textit{E.\,coli} do not place the
 crystal pose first, so their scores carry less weight than the other three.
 The margins in \S\ref{sec:nearmiss} fall almost entirely on FabI.
+\item The reference run re-prepared its two GyrB receptors from the same
+config rather than reusing the panel's files. Preparation is deterministic
+and the settings are identical, but the two runs' receptor checksums were not
+compared, so a difference in receptor preparation is not formally excluded.
 \item No actives-versus-decoys enrichment test has been run, so by the
 project's own selection criteria every target here remains provisional.
 \item Vina scores are a ranking device, not predicted binding free energies,

@@ -1,0 +1,2 @@
+name,chembl_id,smiles,inchikey,heavy_atoms,chemotype,mechanism_evidence,standard_type,standard_value_nM,target_uniprot,target_organism,assay_chembl_id,assay_description
+,CHEMBL8,O=C(O)c1cn(C2CC2)c2cc(N3CCNCC3)c(F)cc2c1=O,MYSWGUAQZAJSOK-UHFFFAOYSA-N,24,fluoroquinolone,excluded: off-site chemotype,IC50,1170.0,P66936,Staphylococcus aureus,CHEMBL5358932,Inhibition of Staphylococcus aureus DNA gyrase subunit B ATPase activity using relaxed pNO1 plasmid as substrate incubated for 30 mins by microplate reader analysis

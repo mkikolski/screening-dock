@@ -257,6 +257,139 @@ def style() -> None:
     })
 
 
+def _spearman(a: list[float], b: list[float]) -> float:
+    """Rank correlation without scipy. Ties are averaged."""
+    def rank(xs):
+        order = np.argsort(np.asarray(xs, float), kind="mergesort")
+        r = np.empty(len(xs), float)
+        r[order] = np.arange(1, len(xs) + 1, dtype=float)
+        return r
+    ra, rb = rank(a), rank(b)
+    if ra.std() == 0 or rb.std() == 0:
+        return float("nan")
+    return float(np.corrcoef(ra, rb)[0, 1])
+
+
+def load_knowns(d: Path) -> tuple[pd.DataFrame, pd.DataFrame] | None:
+    """(activities, best score per compound per receptor) or None if absent.
+
+    Separate run, separate directory: the knowns must never enter the panel's
+    own distributions, only be compared against them.
+    """
+    act_p, sc_p = d / "gyrb_actives.csv", d / "scores.csv"
+    if not (act_p.exists() and sc_p.exists()):
+        return None
+    act = pd.read_csv(act_p)
+    sc = pd.read_csv(sc_p)
+    sc = sc[sc["status"] == "ok"].copy()
+    # Strip molscrub's _<state> suffix, as merge_results.base_name does.
+    sc["name"] = sc["ligand"].str.replace(r"_\d+$", "", regex=True)
+    best = (sc.sort_values("best_score")
+              .groupby(["name", "receptor"], as_index=False).first())
+    return act, best
+
+
+def knowns_tables(df: pd.DataFrame, act: pd.DataFrame, best: pd.DataFrame,
+                  m: Macros, out: Path) -> list[str]:
+    """Panel-versus-knowns summary and the per-compound listing.
+
+    Returns the receptors compared, in the order the tables use.
+    """
+    recs = [r for r in sorted(best["receptor"].unique()) if r in df.columns]
+    pot = dict(zip(act["name"], act["standard_value_nM"]))
+
+    spear = []
+    stats = {}
+    for rec in recs:
+        p_s = df[rec].dropna()
+        k = best.loc[best["receptor"] == rec].set_index("name")["best_score"]
+        worst, bestk = k.max(), k.min()
+        reach, beat = int((p_s <= worst).sum()), int((p_s < bestk).sum())
+        stats[rec] = dict(pmed=p_s.median(), pbest=p_s.min(), n=len(p_s),
+                          kmed=k.median(), kbest=bestk, kworst=worst,
+                          reach=reach, beat=beat)
+        common = [n for n in k.index if n in pot]
+        spear.append(_spearman([float(np.log10(pot[n])) for n in common],
+                               [float(k[n]) for n in common]))
+        # Letters only: a TeX control sequence cannot contain digits, so a
+        # PDB id like 3U2D would silently split into \knownsReach + "3U2D".
+        key = "".join(w.capitalize() for w in rec.split("_") if w.isalpha())
+        m.add(f"knownsReach{key}", f"{100 * reach / len(p_s):.1f}")
+        m.add(f"knownsBeatBest{key}", beat)
+
+    # Transposed: two receptors, six quantities. Metrics down the side reads
+    # far better than seven columns across the text width.
+    label_row = [
+        ("this panel, median", lambda s: num(s["pmed"])),
+        ("this panel, best", lambda s: num(s["pbest"])),
+        ("known inhibitors, median", lambda s: num(s["kmed"])),
+        ("known inhibitors, range",
+         lambda s: f'{num(s["kbest"])} to {num(s["kworst"])}'),
+        ("panel molecules in that range",
+         lambda s: f'{s["reach"]} / {s["n"]}'),
+        ("panel molecules beating the best known",
+         lambda s: f'{s["beat"]} / {s["n"]}'),
+    ]
+    write_table(out / "tables" / "knowns.tex",
+                "l" + "r" * len(recs),
+                ["", *(pretty(r) for r in recs)],
+                [lab + " & " + " & ".join(fn(stats[r]) for r in recs) + r" \\"
+                 for lab, fn in label_row])
+
+    comp = []
+    for _, a in act.sort_values("standard_value_nM").iterrows():
+        cells = []
+        for rec in recs:
+            k = best.loc[(best["receptor"] == rec) & (best["name"] == a["name"]),
+                         "best_score"]
+            cells.append(num(k.iloc[0]) if len(k) else "--")
+        comp.append(f"{a['chemotype'].replace('_', ' ')} & "
+                    f"\\textit{{{a['target_organism'].split()[0][0]}.\\,"
+                    f"{a['target_organism'].split()[-1]}}} & "
+                    f"{a['standard_type']} & {a['standard_value_nM']:g} & "
+                    f"{int(a['heavy_atoms'])} & " + " & ".join(cells) + r" \\")
+    write_table(out / "tables" / "knowns_compounds.tex",
+                "lllrr" + "r" * len(recs),
+                ["chemotype", "organism", "type", "value / nM",
+                 "heavy atoms", *(pretty(r) for r in recs)],
+                comp)
+
+    m.add("nKnowns", len(act))
+    m.add("nKnownsChemotypes", act["chemotype"].nunique())
+    m.add("knownsPotencyLo", f"{act['standard_value_nM'].min():g}")
+    m.add("knownsPotencyHi", f"{act['standard_value_nM'].max():g}")
+    m.add("knownsPotencyFold",
+          f"{act['standard_value_nM'].max() / act['standard_value_nM'].min():.0f}")
+    m.add("knownsSpearmanLo", signed(min(spear)))
+    m.add("knownsSpearmanHi", signed(max(spear)))
+    m.add("knownsScoreSpan",
+          num(max(best.loc[best["receptor"] == r, "best_score"].max()
+                  - best.loc[best["receptor"] == r, "best_score"].min()
+                  for r in recs)))
+    return recs
+
+
+def fig_knowns(df: pd.DataFrame, best: pd.DataFrame, recs: list[str],
+               out: Path) -> None:
+    fig, axes = plt.subplots(1, len(recs), figsize=(5.6, 2.3), sharey=True)
+    for ax, rec in zip(np.atleast_1d(axes), recs):
+        p = df[rec].dropna()
+        k = best.loc[best["receptor"] == rec, "best_score"]
+        ax.hist(p, bins=30, color=BLUE, edgecolor="white", linewidth=0.3,
+                label="panel")
+        for i, v in enumerate(k):
+            ax.axvline(v, color=RED, lw=0.9, alpha=0.85,
+                       label="known inhibitors" if i == 0 else None)
+        ax.set_title(PLAIN.get(rec, rec), fontsize=8)
+        ax.set_xlabel(r"Vina score / kcal mol$^{-1}$", fontsize=8)
+        ax.tick_params(labelsize=7)
+    np.atleast_1d(axes)[0].set_ylabel("molecules", fontsize=8)
+    np.atleast_1d(axes)[0].legend(loc="upper right", fontsize=7)
+    fig.tight_layout()
+    fig.savefig(out)
+    plt.close(fig)
+
+
 def fig_selectivity(df: pd.DataFrame, bact_dhfr: str, out: Path,
                     control: str | None = None) -> None:
     v = df["dhfr_selectivity"].dropna()
@@ -342,6 +475,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--data-dir", default="data")
     ap.add_argument("--out-dir", default=".")
+    ap.add_argument("--knowns-dir", default="data_knowns",
+                    help="GyrB reference run; skipped if absent")
     args = ap.parse_args()
 
     data, out = Path(args.data_dir), Path(args.out_dir)
@@ -490,6 +625,15 @@ def main() -> None:
     fig_receptors(df, recs, human, out / "figures" / "receptors.pdf")
     fig_efficiency(df, near, out / "figures" / "efficiency.pdf")
     print("  figures/         3 PDFs")
+
+    kn = load_knowns(Path(args.knowns_dir))
+    if kn is not None:
+        act, best = kn
+        krecs = knowns_tables(df, act, best, m, out)
+        fig_knowns(df, best, krecs, out / "figures" / "knowns.pdf")
+        print(f"  knowns           {len(act)} compounds, {len(krecs)} receptors")
+    else:
+        print(f"  knowns           absent in {args.knowns_dir}, section skipped")
 
     m.write(out / "numbers.tex")
 

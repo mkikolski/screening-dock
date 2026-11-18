@@ -1,0 +1,47 @@
+{
+  "provenance": {
+    "timestamp_utc": "2026-11-17T10:42:03.165033+00:00",
+    "hostname": "serwer1",
+    "packages": {
+      "python": "3.11.17",
+      "rdkit": "2024.03.5",
+      "meeko": "0.8.0",
+      "molscrub": "unknown",
+      "vina": "1.2.7",
+      "numpy": "2.4.6",
+      "scipy": "1.17.1",
+      "pandas": "3.0.6",
+      "openmm": "8.6.1",
+      "pdbfixer": "unknown",
+      "spyrmsd": "0.9.0",
+      "gemmi": "0.7.5"
+    },
+    "tools": {
+      "mk_prepare_receptor.py": "/storage/users/kikolski/envs/dockpipe/bin/mk_prepare_receptor.py",
+      "prepare_receptor": null,
+      "vina": null,
+      "obabel": "/storage/users/kikolski/envs/dockpipe/bin/obabel"
+    },
+    "modules": null,
+    "conda_prefix": "/storage/users/kikolski/envs/dockpipe",
+    "git_commit": "a7b4f16c04b13a6591537caddee00a32d3f1c1ca",
+    "git_dirty": true,
+    "slurm": {
+      "SLURM_SUBMIT_DIR": "/storage/users/kikolski/screening-dock",
+      "SLURM_JOB_PARTITION": "standard",
+      "SLURM_CPUS_PER_TASK": "32",
+      "SLURM_NNODES": "1",
+      "SLURM_JOB_ID": "2107",
+      "SLURM_JOB_NAME": "prep-ligands"
+    }
+  },
+  "stage": "prep-ligands",
+  "ligands_smi": "/storage/users/kikolski/screening-dock/gyrb_actives.smi",
+  "n_input": 10,
+  "n_ok": 10,
+  "n_states": 10,
+  "failures": [],
+  "checksums": {
+    "/storage/users/kikolski/screening-dock/gyrb_actives.smi": "2894667d7c137180b152c0c4ee3c7ad1864cac0acad6507ee0f71db4e1935c4f"
+  }
+}

@@ -1,0 +1,400 @@
+{
+  "provenance": {
+    "timestamp_utc": "2026-11-16T12:01:37.656382+00:00",
+    "hostname": "serwer2",
+    "packages": {
+      "python": "3.11.17",
+      "rdkit": "2024.03.5",
+      "meeko": "0.8.0",
+      "molscrub": "unknown",
+      "vina": "1.2.7",
+      "numpy": "2.4.6",
+      "scipy": "1.17.1",
+      "pandas": "3.0.6",
+      "openmm": "8.6.1",
+      "pdbfixer": "unknown",
+      "spyrmsd": "0.9.0",
+      "gemmi": "0.7.5"
+    },
+    "tools": {
+      "mk_prepare_receptor.py": "/storage/users/kikolski/envs/dockpipe/bin/mk_prepare_receptor.py",
+      "prepare_receptor": null,
+      "vina": null,
+      "obabel": "/storage/users/kikolski/envs/dockpipe/bin/obabel"
+    },
+    "modules": null,
+    "conda_prefix": "/storage/users/kikolski/envs/dockpipe",
+    "git_commit": "a7a77cf22044cb8c94ca4938143b0e8fd1380678",
+    "git_dirty": false,
+    "slurm": {
+      "SLURM_SUBMIT_DIR": "/storage/users/kikolski/screening-dock",
+      "SLURM_JOB_PARTITION": "standard",
+      "SLURM_CPUS_PER_TASK": "32",
+      "SLURM_NNODES": "1",
+      "SLURM_JOB_ID": "2089",
+      "SLURM_JOB_NAME": "prep-receptors"
+    }
+  },
+  "stage": "prep-receptors",
+  "config": {
+    "run_name": "panel500_v1",
+    "ligands_smi": "/storage/users/kikolski/screening-dock/exp_c5_selected_500.smi",
+    "output_root": "/storage/users/kikolski/screening-dock/results",
+    "receptors": [
+      {
+        "name": "gyrb_saureus_3u2d",
+        "pdb_id": "3U2D",
+        "local_pdb": null,
+        "box": {
+          "center": null,
+          "size": [
+            22.0,
+            22.0,
+            22.0
+          ],
+          "reference_ligand_resname": "08B",
+          "padding": 0.0
+        },
+        "keep_chains": [
+          "A"
+        ],
+        "keep_hetatms": [],
+        "redock_ligand_resname": "08B",
+        "ph": 7.4,
+        "notes": "S. aureus GyrB ATP site. Ligand 08B is the pyrrolamide (4-bromo-5-methyl-N-[1-(3-nitropyridin-2-yl)piperidin-4-yl]-1H-pyrrole-2- carboxamide), 25 atoms in chain A. Key contact is the Asp/conserved-water hinge: if a bridging water sits in the pocket, add HOH to keep_hetatms. Entry is a dimer (chains A, B) -- chain A only.\n"
+      },
+      {
+        "name": "gyrb_ecoli_4zvi",
+        "pdb_id": "4ZVI",
+        "local_pdb": null,
+        "box": {
+          "center": null,
+          "size": [
+            22.0,
+            22.0,
+            22.0
+          ],
+          "reference_ligand_resname": "4S4",
+          "padding": 0.0
+        },
+        "keep_chains": [
+          "A"
+        ],
+        "keep_hetatms": [],
+        "redock_ligand_resname": "4S4",
+        "ph": 7.4,
+        "notes": "E. coli GyrB with the N-phenylpyrrolamide 4S4 (N-(4-{[(4,5-dibromo-1H-pyrrol-2-yl)carbonyl]amino}benzoyl)glycine), 23 atoms. Single chain A.\n"
+      },
+      {
+        "name": "dhfr_ecoli_7mym",
+        "pdb_id": "7MYM",
+        "local_pdb": null,
+        "box": {
+          "center": null,
+          "size": [
+            20.0,
+            20.0,
+            20.0
+          ],
+          "reference_ligand_resname": "TOP",
+          "padding": 0.0
+        },
+        "keep_chains": [
+          "A"
+        ],
+        "keep_hetatms": [
+          "NAP"
+        ],
+        "redock_ligand_resname": "TOP",
+        "ph": 7.4,
+        "notes": "E. coli DHFR ternary complex with trimethoprim and the cofactor. This entry holds NAP (NADP+, oxidized), not NDP -- do not \"correct\" it to NDP or split_pdb drops the cofactor silently and the M20 loop pocket is destroyed. Chains A, B, C present; chain A only. Chain A also has a free ARG and SO4, both ignored.\n"
+      },
+      {
+        "name": "dhfr_ecoli_6xg5",
+        "pdb_id": "6XG5",
+        "local_pdb": null,
+        "box": {
+          "center": null,
+          "size": [
+            20.0,
+            20.0,
+            20.0
+          ],
+          "reference_ligand_resname": "TOP",
+          "padding": 0.0
+        },
+        "keep_chains": [
+          "A"
+        ],
+        "keep_hetatms": [
+          "NDP"
+        ],
+        "redock_ligand_resname": "TOP",
+        "ph": 7.4,
+        "notes": "E. coli K-12 DHFR (folA) with trimethoprim and NADPH at 1.90 A, single chain A. Added because the 7MYM/2W3A pair was not the controlled comparison it was presented as: 7MYM is 3.04 A with NAP (oxidised) while 2W3A is 1.50 A with NDP (reduced), so the pair differed in resolution and in cofactor oxidation state at once. Against 2W3A this entry matches the cofactor exactly and cuts the resolution gap from 1.54 A to 0.40 A. 7MYM is deliberately retained so the baseline offset can be measured against it rather than assumed away: in the first run every bacterial target sat near -6.3 while 2W3A alone sat at -7.69, flat across ligand size, which is the signature of a receptor artefact rather than selectivity. The entry also holds GOL and CL, both deliberately dropped. Residues 160-165 are an expression tag. Manna et al., Nat Commun 12:2949 (2021), doi:10.1038/s41467-021-23191-z.\n"
+      },
+      {
+        "name": "dhfr_human_2w3a",
+        "pdb_id": "2W3A",
+        "local_pdb": null,
+        "box": {
+          "center": null,
+          "size": [
+            20.0,
+            20.0,
+            20.0
+          ],
+          "reference_ligand_resname": "TOP",
+          "padding": 0.0
+        },
+        "keep_chains": [
+          "A"
+        ],
+        "keep_hetatms": [
+          "NDP"
+        ],
+        "redock_ligand_resname": "TOP",
+        "ph": 7.4,
+        "notes": "Human DHFR with TMP + NADPH. Unlike 7MYM and 3GR6 this entry genuinely contains NDP (reduced), so the three keep_hetatms lists differ on purpose. Dock the same panel here and report the bacterial-minus-human score differential as a selectivity axis. Chains A, B; chain A only.\n"
+      },
+      {
+        "name": "fabi_saureus_3gr6",
+        "pdb_id": "3GR6",
+        "local_pdb": null,
+        "box": {
+          "center": null,
+          "size": [
+            22.0,
+            22.0,
+            22.0
+          ],
+          "reference_ligand_resname": "TCL",
+          "padding": 0.0
+        },
+        "keep_chains": [
+          "A"
+        ],
+        "keep_hetatms": [
+          "NAP"
+        ],
+        "redock_ligand_resname": "TCL",
+        "ph": 7.4,
+        "notes": "S. aureus FabI with NADP+ and triclosan. Cofactor is retained because triclosan stacks on the nicotinamide ring. Substrate-binding loop is ordered only in the ternary complex, so use this holo form. Entry is a tetramer (chains A, D, G, J); chain A only.\n"
+      }
+    ],
+    "vina": {
+      "scoring": "vina",
+      "exhaustiveness": 32,
+      "n_poses": 9,
+      "seed": 2137,
+      "cpu": 1,
+      "min_rmsd": 1.0,
+      "max_evals": 0
+    },
+    "ligand_ph": 7.4,
+    "skip_tautomers": true,
+    "n_scrub_attempts": 5,
+    "n_etkdg_attempts": 20,
+    "use_random_coords": true,
+    "n_workers": 12,
+    "primary_bacterial_dhfr": "dhfr_ecoli_6xg5"
+  },
+  "receptors": [
+    {
+      "name": "gyrb_saureus_3u2d",
+      "source_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/gyrb_saureus_3u2d/raw/3u2d.pdb",
+      "pdb_id": "3U2D",
+      "pdb_redo": false,
+      "receptor_pdbqt": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/gyrb_saureus_3u2d/gyrb_saureus_3u2d.pdbqt",
+      "receptor_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/gyrb_saureus_3u2d/gyrb_saureus_3u2d_H.pdb",
+      "reference_ligand_pdbqt": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/gyrb_saureus_3u2d/gyrb_saureus_3u2d_ref.pdbqt",
+      "reference_ligand_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/gyrb_saureus_3u2d/gyrb_saureus_3u2d_ref.pdb",
+      "reference_ligand_resname": "08B",
+      "reference_bond_orders": "ideal_sdf",
+      "cofactor_pdbqt": null,
+      "cofactor_atoms": 0,
+      "kept_hetatms": [],
+      "kept_chains": [
+        "A"
+      ],
+      "box_center": [
+        0.19508000000000048,
+        2.56804,
+        24.189559999999997
+      ],
+      "box_size": [
+        22.0,
+        22.0,
+        22.0
+      ],
+      "ph": 7.4,
+      "notes": "S. aureus GyrB ATP site. Ligand 08B is the pyrrolamide (4-bromo-5-methyl-N-[1-(3-nitropyridin-2-yl)piperidin-4-yl]-1H-pyrrole-2- carboxamide), 25 atoms in chain A. Key contact is the Asp/conserved-water hinge: if a bridging water sits in the pocket, add HOH to keep_hetatms. Entry is a dimer (chains A, B) -- chain A only.\n"
+    },
+    {
+      "name": "gyrb_ecoli_4zvi",
+      "source_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/gyrb_ecoli_4zvi/raw/4zvi.pdb",
+      "pdb_id": "4ZVI",
+      "pdb_redo": false,
+      "receptor_pdbqt": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/gyrb_ecoli_4zvi/gyrb_ecoli_4zvi.pdbqt",
+      "receptor_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/gyrb_ecoli_4zvi/gyrb_ecoli_4zvi_H.pdb",
+      "reference_ligand_pdbqt": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/gyrb_ecoli_4zvi/gyrb_ecoli_4zvi_ref.pdbqt",
+      "reference_ligand_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/gyrb_ecoli_4zvi/gyrb_ecoli_4zvi_ref.pdb",
+      "reference_ligand_resname": "4S4",
+      "reference_bond_orders": "ideal_sdf",
+      "cofactor_pdbqt": null,
+      "cofactor_atoms": 0,
+      "kept_hetatms": [],
+      "kept_chains": [
+        "A"
+      ],
+      "box_center": [
+        -12.331391304347823,
+        20.362130434782607,
+        22.184695652173918
+      ],
+      "box_size": [
+        22.0,
+        22.0,
+        22.0
+      ],
+      "ph": 7.4,
+      "notes": "E. coli GyrB with the N-phenylpyrrolamide 4S4 (N-(4-{[(4,5-dibromo-1H-pyrrol-2-yl)carbonyl]amino}benzoyl)glycine), 23 atoms. Single chain A.\n"
+    },
+    {
+      "name": "dhfr_ecoli_7mym",
+      "source_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_ecoli_7mym/raw/7mym.pdb",
+      "pdb_id": "7MYM",
+      "pdb_redo": false,
+      "receptor_pdbqt": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_ecoli_7mym/dhfr_ecoli_7mym.pdbqt",
+      "receptor_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_ecoli_7mym/dhfr_ecoli_7mym_H.pdb",
+      "reference_ligand_pdbqt": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_ecoli_7mym/dhfr_ecoli_7mym_ref.pdbqt",
+      "reference_ligand_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_ecoli_7mym/dhfr_ecoli_7mym_ref.pdb",
+      "reference_ligand_resname": "TOP",
+      "reference_bond_orders": "ideal_sdf",
+      "cofactor_pdbqt": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_ecoli_7mym/dhfr_ecoli_7mym_cofactor.pdbqt",
+      "cofactor_atoms": 48,
+      "kept_hetatms": [
+        "NAP"
+      ],
+      "kept_chains": [
+        "A"
+      ],
+      "box_center": [
+        3.239809523809523,
+        0.24633333333333313,
+        -30.065095238095232
+      ],
+      "box_size": [
+        20.0,
+        20.0,
+        20.0
+      ],
+      "ph": 7.4,
+      "notes": "E. coli DHFR ternary complex with trimethoprim and the cofactor. This entry holds NAP (NADP+, oxidized), not NDP -- do not \"correct\" it to NDP or split_pdb drops the cofactor silently and the M20 loop pocket is destroyed. Chains A, B, C present; chain A only. Chain A also has a free ARG and SO4, both ignored.\n"
+    },
+    {
+      "name": "dhfr_ecoli_6xg5",
+      "source_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_ecoli_6xg5/raw/6xg5.pdb",
+      "pdb_id": "6XG5",
+      "pdb_redo": false,
+      "receptor_pdbqt": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_ecoli_6xg5/dhfr_ecoli_6xg5.pdbqt",
+      "receptor_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_ecoli_6xg5/dhfr_ecoli_6xg5_H.pdb",
+      "reference_ligand_pdbqt": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_ecoli_6xg5/dhfr_ecoli_6xg5_ref.pdbqt",
+      "reference_ligand_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_ecoli_6xg5/dhfr_ecoli_6xg5_ref.pdb",
+      "reference_ligand_resname": "TOP",
+      "reference_bond_orders": "ideal_sdf",
+      "cofactor_pdbqt": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_ecoli_6xg5/dhfr_ecoli_6xg5_cofactor.pdbqt",
+      "cofactor_atoms": 48,
+      "kept_hetatms": [
+        "NDP"
+      ],
+      "kept_chains": [
+        "A"
+      ],
+      "box_center": [
+        -8.045761904761907,
+        28.262047619047614,
+        17.290047619047623
+      ],
+      "box_size": [
+        20.0,
+        20.0,
+        20.0
+      ],
+      "ph": 7.4,
+      "notes": "E. coli K-12 DHFR (folA) with trimethoprim and NADPH at 1.90 A, single chain A. Added because the 7MYM/2W3A pair was not the controlled comparison it was presented as: 7MYM is 3.04 A with NAP (oxidised) while 2W3A is 1.50 A with NDP (reduced), so the pair differed in resolution and in cofactor oxidation state at once. Against 2W3A this entry matches the cofactor exactly and cuts the resolution gap from 1.54 A to 0.40 A. 7MYM is deliberately retained so the baseline offset can be measured against it rather than assumed away: in the first run every bacterial target sat near -6.3 while 2W3A alone sat at -7.69, flat across ligand size, which is the signature of a receptor artefact rather than selectivity. The entry also holds GOL and CL, both deliberately dropped. Residues 160-165 are an expression tag. Manna et al., Nat Commun 12:2949 (2021), doi:10.1038/s41467-021-23191-z.\n"
+    },
+    {
+      "name": "dhfr_human_2w3a",
+      "source_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_human_2w3a/raw/2w3a.pdb",
+      "pdb_id": "2W3A",
+      "pdb_redo": false,
+      "receptor_pdbqt": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_human_2w3a/dhfr_human_2w3a.pdbqt",
+      "receptor_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_human_2w3a/dhfr_human_2w3a_H.pdb",
+      "reference_ligand_pdbqt": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_human_2w3a/dhfr_human_2w3a_ref.pdbqt",
+      "reference_ligand_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_human_2w3a/dhfr_human_2w3a_ref.pdb",
+      "reference_ligand_resname": "TOP",
+      "reference_bond_orders": "ideal_sdf",
+      "cofactor_pdbqt": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_human_2w3a/dhfr_human_2w3a_cofactor.pdbqt",
+      "cofactor_atoms": 48,
+      "kept_hetatms": [
+        "NDP"
+      ],
+      "kept_chains": [
+        "A"
+      ],
+      "box_center": [
+        1.9136190476190473,
+        30.49490476190477,
+        -2.884380952380952
+      ],
+      "box_size": [
+        20.0,
+        20.0,
+        20.0
+      ],
+      "ph": 7.4,
+      "notes": "Human DHFR with TMP + NADPH. Unlike 7MYM and 3GR6 this entry genuinely contains NDP (reduced), so the three keep_hetatms lists differ on purpose. Dock the same panel here and report the bacterial-minus-human score differential as a selectivity axis. Chains A, B; chain A only.\n"
+    },
+    {
+      "name": "fabi_saureus_3gr6",
+      "source_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/fabi_saureus_3gr6/raw/3gr6.pdb",
+      "pdb_id": "3GR6",
+      "pdb_redo": false,
+      "receptor_pdbqt": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/fabi_saureus_3gr6/fabi_saureus_3gr6.pdbqt",
+      "receptor_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/fabi_saureus_3gr6/fabi_saureus_3gr6_H.pdb",
+      "reference_ligand_pdbqt": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/fabi_saureus_3gr6/fabi_saureus_3gr6_ref.pdbqt",
+      "reference_ligand_pdb": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/fabi_saureus_3gr6/fabi_saureus_3gr6_ref.pdb",
+      "reference_ligand_resname": "TCL",
+      "reference_bond_orders": "ideal_sdf",
+      "cofactor_pdbqt": "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/fabi_saureus_3gr6/fabi_saureus_3gr6_cofactor.pdbqt",
+      "cofactor_atoms": 48,
+      "kept_hetatms": [
+        "NAP"
+      ],
+      "kept_chains": [
+        "A"
+      ],
+      "box_center": [
+        4.983764705882353,
+        21.17894117647059,
+        -21.16864705882353
+      ],
+      "box_size": [
+        22.0,
+        22.0,
+        22.0
+      ],
+      "ph": 7.4,
+      "notes": "S. aureus FabI with NADP+ and triclosan. Cofactor is retained because triclosan stacks on the nicotinamide ring. Substrate-binding loop is ordered only in the ternary complex, so use this holo form. Entry is a tetramer (chains A, D, G, J); chain A only.\n"
+    }
+  ],
+  "checksums": {
+    "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/gyrb_saureus_3u2d/gyrb_saureus_3u2d.pdbqt": "0a9222ef26e4ddad8e69bb1afd8c9109871c11da60049aad3f70bfee2a4cd126",
+    "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/gyrb_ecoli_4zvi/gyrb_ecoli_4zvi.pdbqt": "c1ae7930227022e9844fc71b1a3162e5b73f9ffd76e6c665e2fc30d9156c6194",
+    "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_ecoli_7mym/dhfr_ecoli_7mym.pdbqt": "8646d39d224dccc8b331cc09cd727a4649da2314c228405d3a3b75ac42b47e95",
+    "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_ecoli_6xg5/dhfr_ecoli_6xg5.pdbqt": "ff46a09740dfa7c593937ef98d40e57425496ebb4da1efa51375dd4430b4c35a",
+    "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/dhfr_human_2w3a/dhfr_human_2w3a.pdbqt": "c92a83d7d93b7371ceaba976adddfad908f33784905f1509c19c7240678b295c",
+    "/storage/users/kikolski/screening-dock/results/panel500_v1/receptors/fabi_saureus_3gr6/fabi_saureus_3gr6.pdbqt": "f723a6a5c5d72a5063d809ad39a7d9c5ddc51ec48f28aa5ef6a347ba0f13183b"
+  }
+}

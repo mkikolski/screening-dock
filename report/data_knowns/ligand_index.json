@@ -1,0 +1,102 @@
+[
+  {
+    "name": "gyrb_known_009",
+    "smiles": "CCCOc1nccc2c(-c3cnc(-c4ccc(CO)nc4)s3)n[nH]c12",
+    "pdbqt_files": [
+      "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/ligands/gyrb_known_009_0.pdbqt"
+    ],
+    "n_states": 1,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "name": "gyrb_known_010",
+    "smiles": "CCNC(=O)Nc1nc2cc(-c3cnc(C(C)(C)O)nc3)c(F)c([C@H]3CCCO3)c2[nH]1.CS(=O)(=O)O",
+    "pdbqt_files": [
+      "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/ligands/gyrb_known_010_0.pdbqt"
+    ],
+    "n_states": 1,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "name": "gyrb_known_005",
+    "smiles": "CCNC(=O)Nc1cc(-c2nc(C(F)(F)F)cs2)c(-c2cc(-c3n[nH]c(=O)o3)cnc2N2CCC(N)CC2)cn1",
+    "pdbqt_files": [
+      "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/ligands/gyrb_known_005_0.pdbqt"
+    ],
+    "n_states": 1,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "name": "gyrb_known_006",
+    "smiles": "CCNC(=O)Nc1cc(-c2nc(C3CC3)cs2)c(-c2cc(-c3n[nH]c(=O)o3)cnc2N2C3CCC2CN(C)C3)cn1",
+    "pdbqt_files": [
+      "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/ligands/gyrb_known_006_0.pdbqt"
+    ],
+    "n_states": 1,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "name": "gyrb_known_007",
+    "smiles": "C=CCn1c(=O)ccc2c(-c3cnc(-c4cccnc4)s3)n[nH]c21",
+    "pdbqt_files": [
+      "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/ligands/gyrb_known_007_0.pdbqt"
+    ],
+    "n_states": 1,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "name": "gyrb_known_008",
+    "smiles": "CO[C@@H]1[C@@H](OC(N)=O)[C@@H](O)[C@H](Oc2ccc3c(O)c(NC(=O)c4ccc(O)c(CC=C(C)C)c4)c(=O)oc3c2C)OC1(C)C",
+    "pdbqt_files": [
+      "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/ligands/gyrb_known_008_0.pdbqt"
+    ],
+    "n_states": 1,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "name": "gyrb_known_001",
+    "smiles": "CNc1cc(F)cc2c1[nH]c1nc(Oc3cnc(C)nc3)nc(N3C[C@H]4CCN[C@H]4C3)c12",
+    "pdbqt_files": [
+      "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/ligands/gyrb_known_001_0.pdbqt"
+    ],
+    "n_states": 1,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "name": "gyrb_known_002",
+    "smiles": "CCNC(=O)c1cc2c(-n3ccc(C(F)(F)F)n3)c(-c3cncc(-c4n[nH]c(=O)o4)c3)cnc2[nH]1",
+    "pdbqt_files": [
+      "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/ligands/gyrb_known_002_0.pdbqt"
+    ],
+    "n_states": 1,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "name": "gyrb_known_003",
+    "smiles": "CO[C@@H]1[C@@H](OC(=O)c2ccc(C)[nH]2)[C@@H](O)[C@H](Oc2ccc3c(O)c(NC(=O)c4ccc(O)c(CC=C(C)C)c4)c(=O)oc3c2Cl)OC1(C)C",
+    "pdbqt_files": [
+      "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/ligands/gyrb_known_003_0.pdbqt"
+    ],
+    "n_states": 1,
+    "status": "ok",
+    "error": null
+  },
+  {
+    "name": "gyrb_known_004",
+    "smiles": "CO[C@H]1CN(c2nc(-c3cncc(NCCN4CCN(C)CC4)n3)c(C(=O)O)s2)CC[C@H]1NC(=O)c1[nH]c(C)c(Cl)c1Cl",
+    "pdbqt_files": [
+      "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/ligands/gyrb_known_004_0.pdbqt"
+    ],
+    "n_states": 1,
+    "status": "ok",
+    "error": null
+  }
+]

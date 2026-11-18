@@ -1,0 +1,435 @@
+{
+  "run_name": "panel500_v1",
+  "n_ligand_states": 2460,
+  "n_molecules": 492,
+  "n_failed_states": 0,
+  "redock_control": [
+    {
+      "receptor": "gyrb_saureus_3u2d",
+      "status": "ok",
+      "best_score": -8.004,
+      "rmsd_reported": 0.5347234051357767,
+      "rmsd_best": 0.5347234051357767,
+      "best_pose_rank": 1,
+      "n_poses_scored": 9,
+      "rmsd_per_pose": [
+        0.5347234051357767,
+        9.112109285999592,
+        9.069691386149806,
+        3.054521167057122,
+        3.2948333190011296,
+        1.4208005349098094,
+        8.412115653032833,
+        5.050897567759615,
+        9.193181455839975
+      ],
+      "bond_orders": "ideal_sdf",
+      "threshold": 2.0,
+      "verdict": "PASS",
+      "pose_file": "/storage/users/kikolski/screening-dock/results/panel500_v1/docking/redock/gyrb_saureus_3u2d/gyrb_saureus_3u2d_ref_out.pdbqt"
+    },
+    {
+      "receptor": "gyrb_ecoli_4zvi",
+      "status": "ok",
+      "best_score": -7.97,
+      "rmsd_reported": 9.891535239350075,
+      "rmsd_best": 1.4678533720161322,
+      "best_pose_rank": 5,
+      "n_poses_scored": 9,
+      "rmsd_per_pose": [
+        9.891535239350075,
+        9.884884037497992,
+        9.853529625822238,
+        9.834023949710426,
+        1.4678533720161322,
+        9.9188514302641,
+        9.518721370107391,
+        4.156272577578428,
+        9.75791899143861
+      ],
+      "bond_orders": "ideal_sdf",
+      "threshold": 2.0,
+      "verdict": "FAIL",
+      "pose_file": "/storage/users/kikolski/screening-dock/results/panel500_v1/docking/redock/gyrb_ecoli_4zvi/gyrb_ecoli_4zvi_ref_out.pdbqt"
+    },
+    {
+      "receptor": "dhfr_ecoli_7mym",
+      "status": "ok",
+      "best_score": -7.638,
+      "rmsd_reported": 0.8867500318847581,
+      "rmsd_best": 0.8867500318847581,
+      "best_pose_rank": 1,
+      "n_poses_scored": 9,
+      "rmsd_per_pose": [
+        0.8867500318847581,
+        0.8927781145977775,
+        2.3712066849722615,
+        2.36620442501327,
+        3.1908326051809293,
+        3.1525540137361343,
+        2.499451177854089,
+        2.4592912935776163,
+        6.784831250314048
+      ],
+      "bond_orders": "ideal_sdf",
+      "threshold": 2.0,
+      "verdict": "PASS",
+      "pose_file": "/storage/users/kikolski/screening-dock/results/panel500_v1/docking/redock/dhfr_ecoli_7mym/dhfr_ecoli_7mym_ref_out.pdbqt"
+    },
+    {
+      "receptor": "dhfr_human_2w3a",
+      "status": "ok",
+      "best_score": -7.423,
+      "rmsd_reported": 0.39748842450950406,
+      "rmsd_best": 0.39748842450950406,
+      "best_pose_rank": 1,
+      "n_poses_scored": 9,
+      "rmsd_per_pose": [
+        0.39748842450950406,
+        2.8307035975429957,
+        0.44003744429417874,
+        2.801847171319052,
+        5.313535689520634,
+        6.181364643599571,
+        5.97849969234996,
+        6.2009919406187795,
+        5.347741196501744
+      ],
+      "bond_orders": "ideal_sdf",
+      "threshold": 2.0,
+      "verdict": "PASS",
+      "pose_file": "/storage/users/kikolski/screening-dock/results/panel500_v1/docking/redock/dhfr_human_2w3a/dhfr_human_2w3a_ref_out.pdbqt"
+    },
+    {
+      "receptor": "fabi_saureus_3gr6",
+      "status": "ok",
+      "best_score": -8.454,
+      "rmsd_reported": 5.908916398122417,
+      "rmsd_best": 1.7132071232220654,
+      "best_pose_rank": 2,
+      "n_poses_scored": 9,
+      "rmsd_per_pose": [
+        5.908916398122417,
+        1.7132071232220654,
+        4.542694924433137,
+        7.045376301894322,
+        7.443360238968609,
+        5.942898950947801,
+        7.629761495000236,
+        5.566413514262546,
+        8.615832106207323
+      ],
+      "bond_orders": "ideal_sdf",
+      "threshold": 2.0,
+      "verdict": "FAIL",
+      "pose_file": "/storage/users/kikolski/screening-dock/results/panel500_v1/docking/redock/fabi_saureus_3gr6/fabi_saureus_3gr6_ref_out.pdbqt"
+    }
+  ],
+  "per_receptor": {
+    "dhfr_ecoli_7mym": {
+      "n_molecules": 492,
+      "score_mean": -6.26749593495935,
+      "score_min": -7.911,
+      "score_q05": -7.30035,
+      "score_median": -6.3035,
+      "le_mean": 0.15586452800158124,
+      "le_max": 0.332,
+      "top10_by_le": [
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00005047",
+          "best_score": -6.972,
+          "ligand_efficiency": 0.332
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00003397",
+          "best_score": -6.925,
+          "ligand_efficiency": 0.23083333333333333
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-22-7f587314a461-00002756",
+          "best_score": -7.51,
+          "ligand_efficiency": 0.22757575757575757
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00006716",
+          "best_score": -6.882,
+          "ligand_efficiency": 0.222
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00002366",
+          "best_score": -6.88,
+          "ligand_efficiency": 0.215
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00002275",
+          "best_score": -6.854,
+          "ligand_efficiency": 0.2141875
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-22-7f587314a461-00000422",
+          "best_score": -6.984,
+          "ligand_efficiency": 0.21163636363636362
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00000681",
+          "best_score": -7.296,
+          "ligand_efficiency": 0.20845714285714287
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00001305",
+          "best_score": -6.857,
+          "ligand_efficiency": 0.2077878787878788
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-22-7f587314a461-00009496",
+          "best_score": -7.621,
+          "ligand_efficiency": 0.20597297297297298
+        }
+      ]
+    },
+    "dhfr_human_2w3a": {
+      "n_molecules": 492,
+      "score_mean": -7.690526422764227,
+      "score_min": -9.49,
+      "score_q05": -8.61225,
+      "score_median": -7.7155000000000005,
+      "le_mean": 0.1911070751014159,
+      "le_max": 0.3516666666666667,
+      "top10_by_le": [
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00005047",
+          "best_score": -7.385,
+          "ligand_efficiency": 0.3516666666666667
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00002275",
+          "best_score": -8.502,
+          "ligand_efficiency": 0.2656875
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00002485",
+          "best_score": -9.49,
+          "ligand_efficiency": 0.2564864864864865
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00003397",
+          "best_score": -7.655,
+          "ligand_efficiency": 0.25516666666666665
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-22-7f587314a461-00000422",
+          "best_score": -8.323,
+          "ligand_efficiency": 0.2522121212121212
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-22-7f587314a461-00002756",
+          "best_score": -8.321,
+          "ligand_efficiency": 0.2521515151515151
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00000600",
+          "best_score": -8.684,
+          "ligand_efficiency": 0.2481142857142857
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00006716",
+          "best_score": -7.669,
+          "ligand_efficiency": 0.24738709677419354
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00006438",
+          "best_score": -8.381,
+          "ligand_efficiency": 0.2465
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00002470",
+          "best_score": -8.124,
+          "ligand_efficiency": 0.2461818181818182
+        }
+      ]
+    },
+    "fabi_saureus_3gr6": {
+      "n_molecules": 492,
+      "score_mean": -6.543786585365853,
+      "score_min": -8.846,
+      "score_q05": -7.86545,
+      "score_median": -6.597,
+      "le_mean": 0.16283307232732414,
+      "le_max": 0.2709047619047619,
+      "top10_by_le": [
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00005047",
+          "best_score": -5.689,
+          "ligand_efficiency": 0.2709047619047619
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00004571",
+          "best_score": -8.684,
+          "ligand_efficiency": 0.25541176470588234
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00003397",
+          "best_score": -7.407,
+          "ligand_efficiency": 0.2469
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-22-7f587314a461-00000422",
+          "best_score": -8.014,
+          "ligand_efficiency": 0.24284848484848484
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00002366",
+          "best_score": -7.704,
+          "ligand_efficiency": 0.24075
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00002275",
+          "best_score": -7.613,
+          "ligand_efficiency": 0.23790625
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-22-7f587314a461-00008531",
+          "best_score": -7.994,
+          "ligand_efficiency": 0.23511764705882351
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00003710",
+          "best_score": -8.846,
+          "ligand_efficiency": 0.23278947368421052
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00001761",
+          "best_score": -7.877,
+          "ligand_efficiency": 0.2316764705882353
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00009519",
+          "best_score": -7.165,
+          "ligand_efficiency": 0.23112903225806453
+        }
+      ]
+    },
+    "gyrb_ecoli_4zvi": {
+      "n_molecules": 492,
+      "score_mean": -6.291924796747967,
+      "score_min": -8.332,
+      "score_q05": -7.30335,
+      "score_median": -6.294499999999999,
+      "le_mean": 0.1563787534860657,
+      "le_max": 0.32976190476190476,
+      "top10_by_le": [
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00005047",
+          "best_score": -6.925,
+          "ligand_efficiency": 0.32976190476190476
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00001730",
+          "best_score": -7.528,
+          "ligand_efficiency": 0.2281212121212121
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00006716",
+          "best_score": -6.804,
+          "ligand_efficiency": 0.21948387096774194
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00003397",
+          "best_score": -6.499,
+          "ligand_efficiency": 0.21663333333333332
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-22-7f587314a461-00002756",
+          "best_score": -7.128,
+          "ligand_efficiency": 0.216
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00002366",
+          "best_score": -6.91,
+          "ligand_efficiency": 0.2159375
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00002275",
+          "best_score": -6.842,
+          "ligand_efficiency": 0.2138125
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00004234",
+          "best_score": -7.881,
+          "ligand_efficiency": 0.213
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00000600",
+          "best_score": -7.421,
+          "ligand_efficiency": 0.21202857142857143
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00002793",
+          "best_score": -7.366,
+          "ligand_efficiency": 0.21045714285714284
+        }
+      ]
+    },
+    "gyrb_saureus_3u2d": {
+      "n_molecules": 492,
+      "score_mean": -6.352593495934959,
+      "score_min": -8.747,
+      "score_q05": -7.47405,
+      "score_median": -6.3635,
+      "le_mean": 0.15793074540007682,
+      "le_max": 0.3273809523809524,
+      "top10_by_le": [
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00005047",
+          "best_score": -6.875,
+          "ligand_efficiency": 0.3273809523809524
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00005210",
+          "best_score": -8.747,
+          "ligand_efficiency": 0.24297222222222223
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-22-7f587314a461-00009496",
+          "best_score": -8.532,
+          "ligand_efficiency": 0.23059459459459458
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00002366",
+          "best_score": -7.308,
+          "ligand_efficiency": 0.228375
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-22-7f587314a461-00002756",
+          "best_score": -7.521,
+          "ligand_efficiency": 0.2279090909090909
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00006716",
+          "best_score": -7.004,
+          "ligand_efficiency": 0.22593548387096773
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00009414",
+          "best_score": -8.146,
+          "ligand_efficiency": 0.2201621621621622
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00000600",
+          "best_score": -7.671,
+          "ligand_efficiency": 0.21917142857142857
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00003397",
+          "best_score": -6.551,
+          "ligand_efficiency": 0.21836666666666668
+        },
+        {
+          "ligand_base": "exp_c5_admet_mpo_guided-seed-33-1ddaf6c4434e-00002275",
+          "best_score": -6.923,
+          "ligand_efficiency": 0.21634375
+        }
+      ]
+    }
+  }
+}

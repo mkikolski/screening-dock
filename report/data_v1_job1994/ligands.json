@@ -1,0 +1,112 @@
+{
+  "provenance": {
+    "timestamp_utc": "2026-10-14T13:47:23.979230+00:00",
+    "hostname": "serwer1",
+    "packages": {
+      "python": "3.11.17",
+      "rdkit": "2024.03.5",
+      "meeko": "0.8.0",
+      "molscrub": "unknown",
+      "vina": "1.2.7",
+      "numpy": "2.4.6",
+      "scipy": "1.17.1",
+      "pandas": "3.0.6",
+      "openmm": "8.6.1",
+      "pdbfixer": "unknown",
+      "spyrmsd": "0.9.0",
+      "gemmi": "0.7.5"
+    },
+    "tools": {
+      "mk_prepare_receptor.py": "/storage/users/kikolski/envs/dockpipe/bin/mk_prepare_receptor.py",
+      "prepare_receptor": null,
+      "vina": null,
+      "obabel": "/storage/users/kikolski/envs/dockpipe/bin/obabel"
+    },
+    "modules": null,
+    "conda_prefix": "/storage/users/kikolski/envs/dockpipe",
+    "git_commit": "9770a4e505d577e52d2d03a3e51e281aa64c7502",
+    "git_dirty": false,
+    "slurm": {
+      "SLURM_SUBMIT_DIR": "/storage/users/kikolski/screening-dock",
+      "SLURM_JOB_PARTITION": "standard",
+      "SLURM_CPUS_PER_TASK": "32",
+      "SLURM_NNODES": "1",
+      "SLURM_JOB_ID": "1994",
+      "SLURM_JOB_NAME": "prep-ligands"
+    }
+  },
+  "stage": "prep-ligands",
+  "ligands_smi": "/storage/users/kikolski/screening-dock/exp_c5_selected_500.smi",
+  "n_input": 500,
+  "n_ok": 492,
+  "n_states": 492,
+  "failures": [
+    {
+      "name": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00007154",
+      "smiles": "CCC(C(=O)N([C@@H](C)C(=O)O)[C@@H](C)C(=O)O)([C@@H]1CCCOC1)N(C(=O)[C@@H](CN)CO)[C@@H](CCCO)C(=O)O",
+      "pdbqt_files": [],
+      "n_states": 0,
+      "status": "scrub_failed",
+      "error": "\nETKDG conformer generation failed for molecule: unnamed \nYour molecule may be too large or too weird for ETDKG \nConsider rerunning with higher --num_etkdg_attempts value. \nIf all else fails, you can use --use_random_coords for slower \nbut more robust embedding. \n"
+    },
+    {
+      "name": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00004984",
+      "smiles": "CCOCC(COC(=O)[C@H](OC)C1CC1)N(CCC(F)(F)C(=O)N[C@H]1C[C@@H](OCC)C1)C(C)(COC(=O)CCNC(=O)NC)C(=O)O",
+      "pdbqt_files": [],
+      "n_states": 0,
+      "status": "scrub_failed",
+      "error": "\nETKDG conformer generation failed for molecule: unnamed \nYour molecule may be too large or too weird for ETDKG \nConsider rerunning with higher --num_etkdg_attempts value. \nIf all else fails, you can use --use_random_coords for slower \nbut more robust embedding. \n"
+    },
+    {
+      "name": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00009865",
+      "smiles": "COCCC(=O)OCC(C)(C(=O)N([C@H](C)C(=O)O)C1(CO)CC1)N(C[C@H](C(=O)O)C(C)C)C(=O)N1CC[C@@H](O)[C@H](O)C1",
+      "pdbqt_files": [],
+      "n_states": 0,
+      "status": "scrub_failed",
+      "error": "\nETKDG conformer generation failed for molecule: unnamed \nYour molecule may be too large or too weird for ETDKG \nConsider rerunning with higher --num_etkdg_attempts value. \nIf all else fails, you can use --use_random_coords for slower \nbut more robust embedding. \n"
+    },
+    {
+      "name": "exp_c5_admet_mpo_guided-seed-22-7f587314a461-00009391",
+      "smiles": "CC[C@](N(C(=O)[C@H]1C[C@H](O)CN1C(N)=O)[C@@H](CC(=O)OC)C(=O)OC)(C(C)(C(=O)O)N1CCC[C@@H]1C(=O)O)S(C)(=O)=O",
+      "pdbqt_files": [],
+      "n_states": 0,
+      "status": "scrub_failed",
+      "error": "\nETKDG conformer generation failed for molecule: unnamed \nYour molecule may be too large or too weird for ETDKG \nConsider rerunning with higher --num_etkdg_attempts value. \nIf all else fails, you can use --use_random_coords for slower \nbut more robust embedding. \n"
+    },
+    {
+      "name": "exp_c5_admet_mpo_guided-seed-22-7f587314a461-00005094",
+      "smiles": "CC(=O)OC[C@H]1CCCN(C(C)(C(=O)N(C)C[C@H](C)O)N(C(C)(C)CC(=O)O)C2(C(=O)O)CCCC[C@@H]2CCCO)C1",
+      "pdbqt_files": [],
+      "n_states": 0,
+      "status": "scrub_failed",
+      "error": "\nETKDG conformer generation failed for molecule: unnamed \nYour molecule may be too large or too weird for ETDKG \nConsider rerunning with higher --num_etkdg_attempts value. \nIf all else fails, you can use --use_random_coords for slower \nbut more robust embedding. \n"
+    },
+    {
+      "name": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00007409",
+      "smiles": "CC(C)N(CC(C)(C(=O)O)N(CC[C@H](C)CC(=O)N[C@H]1CC[C@@H](C(=O)O)CC1)C(=O)NC1(C(=O)N[C@@H](C)C(=O)O)CC1)C(=O)CN(C)C",
+      "pdbqt_files": [],
+      "n_states": 0,
+      "status": "scrub_failed",
+      "error": "\nETKDG conformer generation failed for molecule: unnamed \nYour molecule may be too large or too weird for ETDKG \nConsider rerunning with higher --num_etkdg_attempts value. \nIf all else fails, you can use --use_random_coords for slower \nbut more robust embedding. \n"
+    },
+    {
+      "name": "exp_c5_admet_mpo_guided-seed-22-7f587314a461-00003420",
+      "smiles": "CCOC(=O)N(CCC(=O)N(CCC(=O)O)CCC(=O)O)C1(C(=O)O)CC[C@@H](OC(=O)CCN2CC[C@@H]3C[C@H]32)CC1(C)C",
+      "pdbqt_files": [],
+      "n_states": 0,
+      "status": "scrub_failed",
+      "error": "\nETKDG conformer generation failed for molecule: unnamed \nYour molecule may be too large or too weird for ETDKG \nConsider rerunning with higher --num_etkdg_attempts value. \nIf all else fails, you can use --use_random_coords for slower \nbut more robust embedding. \n"
+    },
+    {
+      "name": "exp_c5_admet_mpo_guided-seed-11-fea2b5734a74-00009748",
+      "smiles": "C[C@@H]1C[C@@H](C(=O)O)N(C2(C(=O)O)CCC(CO)(CNC(=O)[C@H]3C[C@H](O)CN(C(=O)[C@]45CC[C@@H]4C5)C3)CC2)C1",
+      "pdbqt_files": [],
+      "n_states": 0,
+      "status": "scrub_failed",
+      "error": "\nETKDG conformer generation failed for molecule: unnamed \nYour molecule may be too large or too weird for ETDKG \nConsider rerunning with higher --num_etkdg_attempts value. \nIf all else fails, you can use --use_random_coords for slower \nbut more robust embedding. \n"
+    }
+  ],
+  "checksums": {
+    "/storage/users/kikolski/screening-dock/exp_c5_selected_500.smi": "70466ebeeb6590f082dedda364c18e86a4fe0f895eb77cf21c296a3762d4f74b"
+  }
+}

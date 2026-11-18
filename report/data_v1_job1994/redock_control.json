@@ -1,0 +1,122 @@
+[
+  {
+    "receptor": "gyrb_saureus_3u2d",
+    "status": "ok",
+    "best_score": -8.004,
+    "rmsd_reported": 0.5347234051357767,
+    "rmsd_best": 0.5347234051357767,
+    "best_pose_rank": 1,
+    "n_poses_scored": 9,
+    "rmsd_per_pose": [
+      0.5347234051357767,
+      9.112109285999592,
+      9.069691386149806,
+      3.054521167057122,
+      3.2948333190011296,
+      1.4208005349098094,
+      8.412115653032833,
+      5.050897567759615,
+      9.193181455839975
+    ],
+    "bond_orders": "ideal_sdf",
+    "threshold": 2.0,
+    "verdict": "PASS",
+    "pose_file": "/storage/users/kikolski/screening-dock/results/panel500_v1/docking/redock/gyrb_saureus_3u2d/gyrb_saureus_3u2d_ref_out.pdbqt"
+  },
+  {
+    "receptor": "gyrb_ecoli_4zvi",
+    "status": "ok",
+    "best_score": -7.97,
+    "rmsd_reported": 9.891535239350075,
+    "rmsd_best": 1.4678533720161322,
+    "best_pose_rank": 5,
+    "n_poses_scored": 9,
+    "rmsd_per_pose": [
+      9.891535239350075,
+      9.884884037497992,
+      9.853529625822238,
+      9.834023949710426,
+      1.4678533720161322,
+      9.9188514302641,
+      9.518721370107391,
+      4.156272577578428,
+      9.75791899143861
+    ],
+    "bond_orders": "ideal_sdf",
+    "threshold": 2.0,
+    "verdict": "FAIL",
+    "pose_file": "/storage/users/kikolski/screening-dock/results/panel500_v1/docking/redock/gyrb_ecoli_4zvi/gyrb_ecoli_4zvi_ref_out.pdbqt"
+  },
+  {
+    "receptor": "dhfr_ecoli_7mym",
+    "status": "ok",
+    "best_score": -7.638,
+    "rmsd_reported": 0.8867500318847581,
+    "rmsd_best": 0.8867500318847581,
+    "best_pose_rank": 1,
+    "n_poses_scored": 9,
+    "rmsd_per_pose": [
+      0.8867500318847581,
+      0.8927781145977775,
+      2.3712066849722615,
+      2.36620442501327,
+      3.1908326051809293,
+      3.1525540137361343,
+      2.499451177854089,
+      2.4592912935776163,
+      6.784831250314048
+    ],
+    "bond_orders": "ideal_sdf",
+    "threshold": 2.0,
+    "verdict": "PASS",
+    "pose_file": "/storage/users/kikolski/screening-dock/results/panel500_v1/docking/redock/dhfr_ecoli_7mym/dhfr_ecoli_7mym_ref_out.pdbqt"
+  },
+  {
+    "receptor": "dhfr_human_2w3a",
+    "status": "ok",
+    "best_score": -7.423,
+    "rmsd_reported": 0.39748842450950406,
+    "rmsd_best": 0.39748842450950406,
+    "best_pose_rank": 1,
+    "n_poses_scored": 9,
+    "rmsd_per_pose": [
+      0.39748842450950406,
+      2.8307035975429957,
+      0.44003744429417874,
+      2.801847171319052,
+      5.313535689520634,
+      6.181364643599571,
+      5.97849969234996,
+      6.2009919406187795,
+      5.347741196501744
+    ],
+    "bond_orders": "ideal_sdf",
+    "threshold": 2.0,
+    "verdict": "PASS",
+    "pose_file": "/storage/users/kikolski/screening-dock/results/panel500_v1/docking/redock/dhfr_human_2w3a/dhfr_human_2w3a_ref_out.pdbqt"
+  },
+  {
+    "receptor": "fabi_saureus_3gr6",
+    "status": "ok",
+    "best_score": -8.454,
+    "rmsd_reported": 5.908916398122417,
+    "rmsd_best": 1.7132071232220654,
+    "best_pose_rank": 2,
+    "n_poses_scored": 9,
+    "rmsd_per_pose": [
+      5.908916398122417,
+      1.7132071232220654,
+      4.542694924433137,
+      7.045376301894322,
+      7.443360238968609,
+      5.942898950947801,
+      7.629761495000236,
+      5.566413514262546,
+      8.615832106207323
+    ],
+    "bond_orders": "ideal_sdf",
+    "threshold": 2.0,
+    "verdict": "FAIL",
+    "pose_file": "/storage/users/kikolski/screening-dock/results/panel500_v1/docking/redock/fabi_saureus_3gr6/fabi_saureus_3gr6_ref_out.pdbqt"
+  }
+]

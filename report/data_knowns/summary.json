@@ -1,0 +1,180 @@
+{
+  "run_name": "gyrb_knowns_v1",
+  "n_ligand_states": 20,
+  "n_molecules": 10,
+  "n_failed_states": 0,
+  "redock_control": [
+    {
+      "receptor": "gyrb_saureus_3u2d",
+      "status": "ok",
+      "best_score": -8.004,
+      "rmsd_reported": 0.5347234051357767,
+      "rmsd_best": 0.5347234051357767,
+      "best_pose_rank": 1,
+      "n_poses_scored": 9,
+      "rmsd_per_pose": [
+        0.5347234051357767,
+        9.112109285999592,
+        9.069691386149806,
+        3.054521167057122,
+        3.2948333190011296,
+        1.4208005349098094,
+        8.412115653032833,
+        5.050897567759615,
+        9.193181455839975
+      ],
+      "bond_orders": "ideal_sdf",
+      "threshold": 2.0,
+      "verdict": "PASS",
+      "pose_file": "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/docking/redock/gyrb_saureus_3u2d/gyrb_saureus_3u2d_ref_out.pdbqt"
+    },
+    {
+      "receptor": "gyrb_ecoli_4zvi",
+      "status": "ok",
+      "best_score": -7.97,
+      "rmsd_reported": 9.891535239350075,
+      "rmsd_best": 1.4678533720161322,
+      "best_pose_rank": 5,
+      "n_poses_scored": 9,
+      "rmsd_per_pose": [
+        9.891535239350075,
+        9.884884037497992,
+        9.853529625822238,
+        9.834023949710426,
+        1.4678533720161322,
+        9.9188514302641,
+        9.518721370107391,
+        4.156272577578428,
+        9.75791899143861
+      ],
+      "bond_orders": "ideal_sdf",
+      "threshold": 2.0,
+      "verdict": "FAIL",
+      "pose_file": "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/docking/redock/gyrb_ecoli_4zvi/gyrb_ecoli_4zvi_ref_out.pdbqt"
+    }
+  ],
+  "per_receptor": {
+    "gyrb_ecoli_4zvi": {
+      "n_molecules": 10,
+      "score_mean": -7.9962,
+      "score_min": -8.564,
+      "score_q05": -8.51225,
+      "score_median": -8.0275,
+      "le_mean": 0.2276184957924765,
+      "le_max": 0.35683333333333334,
+      "top10_by_le": [
+        {
+          "ligand_base": "gyrb_known_007",
+          "best_score": -8.564,
+          "ligand_efficiency": 0.35683333333333334
+        },
+        {
+          "ligand_base": "gyrb_known_009",
+          "best_score": -7.545,
+          "ligand_efficiency": 0.2901923076923077
+        },
+        {
+          "ligand_base": "gyrb_known_001",
+          "best_score": -8.122,
+          "ligand_efficiency": 0.2538125
+        },
+        {
+          "ligand_base": "gyrb_known_002",
+          "best_score": -8.344,
+          "ligand_efficiency": 0.23839999999999997
+        },
+        {
+          "ligand_base": "gyrb_known_010",
+          "best_score": -8.194,
+          "ligand_efficiency": 0.22761111111111113
+        },
+        {
+          "ligand_base": "gyrb_known_006",
+          "best_score": -8.449,
+          "ligand_efficiency": 0.2060731707317073
+        },
+        {
+          "ligand_base": "gyrb_known_005",
+          "best_score": -7.933,
+          "ligand_efficiency": 0.198325
+        },
+        {
+          "ligand_base": "gyrb_known_004",
+          "best_score": -7.728,
+          "ligand_efficiency": 0.17972093023255814
+        },
+        {
+          "ligand_base": "gyrb_known_008",
+          "best_score": -7.503,
+          "ligand_efficiency": 0.17052272727272727
+        },
+        {
+          "ligand_base": "gyrb_known_003",
+          "best_score": -7.58,
+          "ligand_efficiency": 0.1546938775510204
+        }
+      ]
+    },
+    "gyrb_saureus_3u2d": {
+      "n_molecules": 10,
+      "score_mean": -8.505400000000002,
+      "score_min": -9.221,
+      "score_q05": -9.09995,
+      "score_median": -8.6295,
+      "le_mean": 0.240050850194612,
+      "le_max": 0.3436666666666666,
+      "top10_by_le": [
+        {
+          "ligand_base": "gyrb_known_007",
+          "best_score": -8.248,
+          "ligand_efficiency": 0.3436666666666666
+        },
+        {
+          "ligand_base": "gyrb_known_001",
+          "best_score": -9.221,
+          "ligand_efficiency": 0.28815625
+        },
+        {
+          "ligand_base": "gyrb_known_009",
+          "best_score": -7.379,
+          "ligand_efficiency": 0.2838076923076923
+        },
+        {
+          "ligand_base": "gyrb_known_002",
+          "best_score": -8.937,
+          "ligand_efficiency": 0.25534285714285715
+        },
+        {
+          "ligand_base": "gyrb_known_010",
+          "best_score": -8.952,
+          "ligand_efficiency": 0.24866666666666667
+        },
+        {
+          "ligand_base": "gyrb_known_005",
+          "best_score": -8.855,
+          "ligand_efficiency": 0.22137500000000002
+        },
+        {
+          "ligand_base": "gyrb_known_006",
+          "best_score": -8.717,
+          "ligand_efficiency": 0.212609756097561
+        },
+        {
+          "ligand_base": "gyrb_known_004",
+          "best_score": -8.149,
+          "ligand_efficiency": 0.18951162790697673
+        },
+        {
+          "ligand_base": "gyrb_known_008",
+          "best_score": -8.054,
+          "ligand_efficiency": 0.18304545454545454
+        },
+        {
+          "ligand_base": "gyrb_known_003",
+          "best_score": -8.542,
+          "ligand_efficiency": 0.1743265306122449
+        }
+      ]
+    }
+  }
+}

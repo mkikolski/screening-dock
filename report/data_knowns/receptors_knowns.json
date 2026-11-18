@@ -1,0 +1,172 @@
+{
+  "provenance": {
+    "timestamp_utc": "2026-11-17T10:37:43.274277+00:00",
+    "hostname": "serwer1",
+    "packages": {
+      "python": "3.11.17",
+      "rdkit": "2024.03.5",
+      "meeko": "0.8.0",
+      "molscrub": "unknown",
+      "vina": "1.2.7",
+      "numpy": "2.4.6",
+      "scipy": "1.17.1",
+      "pandas": "3.0.6",
+      "openmm": "8.6.1",
+      "pdbfixer": "unknown",
+      "spyrmsd": "0.9.0",
+      "gemmi": "0.7.5"
+    },
+    "tools": {
+      "mk_prepare_receptor.py": "/storage/users/kikolski/envs/dockpipe/bin/mk_prepare_receptor.py",
+      "prepare_receptor": null,
+      "vina": null,
+      "obabel": "/storage/users/kikolski/envs/dockpipe/bin/obabel"
+    },
+    "modules": null,
+    "conda_prefix": "/storage/users/kikolski/envs/dockpipe",
+    "git_commit": "a7b4f16c04b13a6591537caddee00a32d3f1c1ca",
+    "git_dirty": true,
+    "slurm": {
+      "SLURM_SUBMIT_DIR": "/storage/users/kikolski/screening-dock",
+      "SLURM_JOB_PARTITION": "standard",
+      "SLURM_CPUS_PER_TASK": "32",
+      "SLURM_NNODES": "1",
+      "SLURM_JOB_ID": "2107",
+      "SLURM_JOB_NAME": "prep-receptors"
+    }
+  },
+  "stage": "prep-receptors",
+  "config": {
+    "run_name": "gyrb_knowns_v1",
+    "ligands_smi": "/storage/users/kikolski/screening-dock/gyrb_actives.smi",
+    "output_root": "/storage/users/kikolski/screening-dock/results",
+    "receptors": [
+      {
+        "name": "gyrb_saureus_3u2d",
+        "pdb_id": "3U2D",
+        "local_pdb": null,
+        "box": {
+          "center": null,
+          "size": [
+            22.0,
+            22.0,
+            22.0
+          ],
+          "reference_ligand_resname": "08B",
+          "padding": 0.0
+        },
+        "keep_chains": [
+          "A"
+        ],
+        "keep_hetatms": [],
+        "redock_ligand_resname": "08B",
+        "ph": 7.4,
+        "notes": "S. aureus GyrB ATP site. Ligand 08B is the pyrrolamide (4-bromo-5-methyl-N-[1-(3-nitropyridin-2-yl)piperidin-4-yl]-1H-pyrrole-2- carboxamide), 25 atoms in chain A. Key contact is the Asp/conserved-water hinge: if a bridging water sits in the pocket, add HOH to keep_hetatms. Entry is a dimer (chains A, B) -- chain A only.\n"
+      },
+      {
+        "name": "gyrb_ecoli_4zvi",
+        "pdb_id": "4ZVI",
+        "local_pdb": null,
+        "box": {
+          "center": null,
+          "size": [
+            22.0,
+            22.0,
+            22.0
+          ],
+          "reference_ligand_resname": "4S4",
+          "padding": 0.0
+        },
+        "keep_chains": [
+          "A"
+        ],
+        "keep_hetatms": [],
+        "redock_ligand_resname": "4S4",
+        "ph": 7.4,
+        "notes": "E. coli GyrB with the N-phenylpyrrolamide 4S4 (N-(4-{[(4,5-dibromo-1H-pyrrol-2-yl)carbonyl]amino}benzoyl)glycine), 23 atoms. Single chain A.\n"
+      }
+    ],
+    "vina": {
+      "scoring": "vina",
+      "exhaustiveness": 32,
+      "n_poses": 9,
+      "seed": 2137,
+      "cpu": 1,
+      "min_rmsd": 1.0,
+      "max_evals": 0
+    },
+    "ligand_ph": 7.4,
+    "skip_tautomers": true,
+    "n_scrub_attempts": 5,
+    "n_etkdg_attempts": 20,
+    "use_random_coords": true,
+    "n_workers": 12,
+    "primary_bacterial_dhfr": null
+  },
+  "receptors": [
+    {
+      "name": "gyrb_saureus_3u2d",
+      "source_pdb": "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/receptors/gyrb_saureus_3u2d/raw/3u2d.pdb",
+      "pdb_id": "3U2D",
+      "pdb_redo": false,
+      "receptor_pdbqt": "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/receptors/gyrb_saureus_3u2d/gyrb_saureus_3u2d.pdbqt",
+      "receptor_pdb": "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/receptors/gyrb_saureus_3u2d/gyrb_saureus_3u2d_H.pdb",
+      "reference_ligand_pdbqt": "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/receptors/gyrb_saureus_3u2d/gyrb_saureus_3u2d_ref.pdbqt",
+      "reference_ligand_pdb": "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/receptors/gyrb_saureus_3u2d/gyrb_saureus_3u2d_ref.pdb",
+      "reference_ligand_resname": "08B",
+      "reference_bond_orders": "ideal_sdf",
+      "cofactor_pdbqt": null,
+      "cofactor_atoms": 0,
+      "kept_hetatms": [],
+      "kept_chains": [
+        "A"
+      ],
+      "box_center": [
+        0.19508000000000048,
+        2.56804,
+        24.189559999999997
+      ],
+      "box_size": [
+        22.0,
+        22.0,
+        22.0
+      ],
+      "ph": 7.4,
+      "notes": "S. aureus GyrB ATP site. Ligand 08B is the pyrrolamide (4-bromo-5-methyl-N-[1-(3-nitropyridin-2-yl)piperidin-4-yl]-1H-pyrrole-2- carboxamide), 25 atoms in chain A. Key contact is the Asp/conserved-water hinge: if a bridging water sits in the pocket, add HOH to keep_hetatms. Entry is a dimer (chains A, B) -- chain A only.\n"
+    },
+    {
+      "name": "gyrb_ecoli_4zvi",
+      "source_pdb": "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/receptors/gyrb_ecoli_4zvi/raw/4zvi.pdb",
+      "pdb_id": "4ZVI",
+      "pdb_redo": false,
+      "receptor_pdbqt": "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/receptors/gyrb_ecoli_4zvi/gyrb_ecoli_4zvi.pdbqt",
+      "receptor_pdb": "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/receptors/gyrb_ecoli_4zvi/gyrb_ecoli_4zvi_H.pdb",
+      "reference_ligand_pdbqt": "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/receptors/gyrb_ecoli_4zvi/gyrb_ecoli_4zvi_ref.pdbqt",
+      "reference_ligand_pdb": "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/receptors/gyrb_ecoli_4zvi/gyrb_ecoli_4zvi_ref.pdb",
+      "reference_ligand_resname": "4S4",
+      "reference_bond_orders": "ideal_sdf",
+      "cofactor_pdbqt": null,
+      "cofactor_atoms": 0,
+      "kept_hetatms": [],
+      "kept_chains": [
+        "A"
+      ],
+      "box_center": [
+        -12.331391304347823,
+        20.362130434782607,
+        22.184695652173918
+      ],
+      "box_size": [
+        22.0,
+        22.0,
+        22.0
+      ],
+      "ph": 7.4,
+      "notes": "E. coli GyrB with the N-phenylpyrrolamide 4S4 (N-(4-{[(4,5-dibromo-1H-pyrrol-2-yl)carbonyl]amino}benzoyl)glycine), 23 atoms. Single chain A.\n"
+    }
+  ],
+  "checksums": {
+    "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/receptors/gyrb_saureus_3u2d/gyrb_saureus_3u2d.pdbqt": "36b04c73d2f798b76ea23f90f7d04c7cdbe74d58b876f8e4ae5a697e8037b454",
+    "/storage/users/kikolski/screening-dock/results/gyrb_knowns_v1/receptors/gyrb_ecoli_4zvi/gyrb_ecoli_4zvi.pdbqt": "eca8c12121e610382b30c07217cbae04a0a6a8d96b41564f78eb94922df59664"
+  }
+}
