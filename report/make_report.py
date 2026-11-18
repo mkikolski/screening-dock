@@ -296,7 +296,11 @@ def knowns_tables(df: pd.DataFrame, act: pd.DataFrame, best: pd.DataFrame,
     Returns the receptors compared, in the order the tables use.
     """
     recs = [r for r in sorted(best["receptor"].unique()) if r in df.columns]
-    pot = dict(zip(act["name"], act["standard_value_nM"]))
+    rel = (act["standard_relation"] if "standard_relation" in act
+           else pd.Series(["="] * len(act), index=act.index))
+    exact = act[rel.astype(str).str.strip() == "="]
+    # A "<0.05 nM" record is a bound, not a measurement, so it has no rank.
+    pot = dict(zip(exact["name"], exact["standard_value_nM"]))
 
     spear = []
     stats = {}
@@ -346,7 +350,9 @@ def knowns_tables(df: pd.DataFrame, act: pd.DataFrame, best: pd.DataFrame,
         comp.append(f"{a['chemotype'].replace('_', ' ')} & "
                     f"\\textit{{{a['target_organism'].split()[0][0]}.\\,"
                     f"{a['target_organism'].split()[-1]}}} & "
-                    f"{a['standard_type']} & {a['standard_value_nM']:g} & "
+                    f"{a['standard_type']} & "
+                    f"{'$<$~' if str(a.get('standard_relation', '=')).strip() == '<' else ''}"
+                    f"{a['standard_value_nM']:g} & "
                     f"{int(a['heavy_atoms'])} & " + " & ".join(cells) + r" \\")
     write_table(out / "tables" / "knowns_compounds.tex",
                 "lllrr" + "r" * len(recs),
@@ -360,6 +366,8 @@ def knowns_tables(df: pd.DataFrame, act: pd.DataFrame, best: pd.DataFrame,
     m.add("knownsPotencyHi", f"{act['standard_value_nM'].max():g}")
     m.add("knownsPotencyFold",
           f"{act['standard_value_nM'].max() / act['standard_value_nM'].min():.0f}")
+    m.add("nKnownsCensored", len(act) - len(exact))
+    m.add("nKnownsExact", len(exact))
     m.add("knownsSpearmanLo", signed(min(spear)))
     m.add("knownsSpearmanHi", signed(max(spear)))
     m.add("knownsScoreSpan",

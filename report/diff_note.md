@@ -105,3 +105,32 @@ The conclusion. No molecule in the set shows useful selectivity for a
 bacterial DHFR over the human enzyme, and the panel's best GyrB scores still
 exceed both co-crystal ligands (08B −8.004, 4S4 −7.970), which remains a
 calibration warning rather than a hit.
+
+---
+
+## 8. Reference-set potencies: three are bounds, not measurements
+
+Checking the strongest reference compound (CHEMBL4165664, flagged because
+its chemotype was `unclassified`) found its ChEMBL record is **Ki < 0.05 nM**,
+not Ki = 0.05 nM — a reference compound quoted below the assay's limit of
+quantitation in Zidar et al., *Eur J Med Chem* 154:117 (2018).
+
+`fetch_gyrb_actives.py` never requested `standard_relation`, so it imported
+the bound as an equality. Because the selection sorts ascending by potency, a
+censored record goes straight to the top of both the potency ranking and the
+chemotype round-robin. Three of the ten are affected (`<0.05`, `<1.0`,
+`<8.0` nM).
+
+The compounds themselves are sound. CHEMBL4165664 is measured in a direct
+single-protein *E. coli* GyrB assay (ChEMBL confidence 9) and is dual-active
+against topoisomerase IV, which is the expected profile for an ATP-site
+binder, since ParE is the GyrB homologue. No re-docking is needed.
+
+What changed is the correlation. Excluding the three bounds flips the rank
+correlation between log potency and score from **+0.13 / +0.43** to
+**−0.29 / −0.14** — the right direction rather than the wrong one, though
+still weak at seven compounds. The censored values had been inverting it.
+
+The fetcher now requests `standard_relation`, records it per compound, and
+skips censored records when ranking. A re-run would therefore return a
+slightly different ten.

@@ -61,8 +61,8 @@ BACKOFF = (5, 10, 20, 30, 45, 60, 60)   # between attempts, ~4.5 min of patience
 # Field selection. A full activity record carries large unused text, and asking
 # only for what the output CSV needs keeps each page inside the timeout.
 ACTIVITY_FIELDS = ("molecule_chembl_id,canonical_smiles,standard_type,"
-                   "standard_value,standard_units,assay_chembl_id,"
-                   "assay_description")
+                   "standard_relation,standard_value,standard_units,"
+                   "assay_chembl_id,assay_description")
 TARGET_FIELDS = "target_chembl_id,pref_name,target_type,organism"
 
 
@@ -244,6 +244,28 @@ def _get(path: str, **params) -> dict:
     raise FetchError(f"{url}\n  gave up after {ATTEMPTS} attempts: {last}")
 
 
+def usable_records(batch: list[dict]) -> tuple[list[dict], int]:
+    """(records with an exact value, count of censored ones dropped).
+
+    A censored value -- "<0.05 nM", ">10 uM" -- is a bound, not a
+    measurement, and must not be ranked against exact ones. It is typically a
+    reference compound quoted below an assay's limit of quantitation, and
+    because it sorts to the very top of an ascending potency ranking it would
+    otherwise lead both the potency mode and the chemotype round-robin while
+    carrying no actual number.
+    """
+    ok: list[dict] = []
+    censored = 0
+    for r in batch:
+        if not (r.get("canonical_smiles") and r.get("standard_value")):
+            continue
+        if (r.get("standard_relation") or "=").strip() == "=":
+            ok.append(r)
+        else:
+            censored += 1
+    return ok, censored
+
+
 def activities(target_chembl_id: str, limit: int, page: int = PAGE) -> list[dict]:
     """Potency records carrying a structure, most potent first.
 
@@ -269,8 +291,10 @@ def activities(target_chembl_id: str, limit: int, page: int = PAGE) -> list[dict
                           target_chembl_id, stype, offset, exc)
                 break
             batch = data.get("activities", [])
-            usable = [r for r in batch
-                      if r.get("canonical_smiles") and r.get("standard_value")]
+            usable, censored = usable_records(batch)
+            if censored:
+                log.info("  %s/%s: %d censored record(s) skipped at offset %d",
+                         target_chembl_id, stype, censored, offset)
             rows.extend(usable)
             got += len(usable)
             total = data.get("page_meta", {}).get("total_count")
@@ -288,7 +312,8 @@ def activities(target_chembl_id: str, limit: int, page: int = PAGE) -> list[dict
 
 CSV_COLS = ["name", "chembl_id", "smiles", "inchikey", "heavy_atoms",
             "chemotype", "mechanism_evidence", "standard_type",
-            "standard_value_nM", "target_uniprot", "target_organism",
+            "standard_relation", "standard_value_nM",
+            "target_uniprot", "target_organism",
             "assay_chembl_id", "assay_description"]
 
 
@@ -404,6 +429,7 @@ def build(out_dir: Path, max_per_target: int, max_compounds: int,
                 "chemotype": chemotype,
                 "mechanism_evidence": why,
                 "standard_type": a.get("standard_type", ""),
+                "standard_relation": (a.get("standard_relation") or "=").strip(),
                 "standard_value_nM": a.get("standard_value", ""),
                 "target_uniprot": accession,
                 "target_organism": organism,
@@ -543,6 +569,18 @@ def selftest() -> None:
         {"smiles": "O=c1ccc2ccccc2o1", "chemotype": "aminocoumarin",
          "standard_value_nM": "500.0", "inchikey": "C"},
     ]
+    batch = [
+        {"canonical_smiles": "CC", "standard_value": "1.0", "standard_relation": "="},
+        {"canonical_smiles": "CCC", "standard_value": "0.05", "standard_relation": "<"},
+        {"canonical_smiles": "CCCC", "standard_value": "9.0", "standard_relation": ">"},
+        {"canonical_smiles": "CCCCC", "standard_value": "2.0"},        # absent = exact
+        {"canonical_smiles": "CCCCCC", "standard_value": None},        # no value
+        {"canonical_smiles": None, "standard_value": "3.0", "standard_relation": "="},
+    ]
+    ok, censored = usable_records(batch)
+    assert [r["standard_value"] for r in ok] == ["1.0", "2.0"], ok
+    assert censored == 2, censored
+
     picked = select(pool, 2, "diverse")
     keys = {r["inchikey"] for r in picked}
     assert keys == {"A", "C"}, f"diverse must span series, got {keys}"
