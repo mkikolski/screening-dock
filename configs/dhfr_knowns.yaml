@@ -1,0 +1,126 @@
+# Published DHFR inhibitors whose bacterial-vs-human selectivity is already
+# MEASURED, docked through the identical pipeline against both enzymes.
+#
+# Why this run is not the GyrB knowns run again. The GyrB set tested a one-sided
+# question: do real inhibitors out-score our generated panel? The DHFR headline
+# is a claim about a *difference* -- that no generated molecule scores better
+# against bacterial DHFR than against human DHFR -- and a set of potent DHFR
+# inhibitors cannot test a difference. These 18 compounds were chosen to span
+# the measured selectivity axis instead, from trimethoprim at 2700x
+# bacterial-selective to compounds 140x human-selective, about 400,000-fold
+# end to end. The experiment is the correlation:
+#
+#     selectivity_vina = score(dhfr_human_2w3a) - score(dhfr_ecoli_6xg5)
+#     selectivity_expt = log10( Ki_human / Ki_ecoli )     [in dhfr_actives.csv]
+#
+# If those correlate, the report's selectivity column measures selectivity and
+# the negative result is about chemistry. If the Vina differential is flat
+# across 400,000-fold of real selectivity, the axis cannot resolve selectivity
+# and the headline is uninformative rather than negative. Read that correlation
+# before anything else in this run.
+#
+# Separate run_name on purpose: prep-ligands rewrites
+# ligands/ligand_index.json for the whole input file, so pointing a second .smi
+# at panel500_v1 would overwrite the panel's index and mix these reference
+# compounds into its per_molecule.csv.
+#
+# The receptor blocks below are extracted verbatim from panel500.yaml rather
+# than retyped. This matters: check_comparable.py reports the two GyrB
+# receptor PDBQTs as DIFFERING between panel500_v1 and gyrb_knowns_v1, so run
+# it on this run's manifest against the panel's BEFORE comparing any score
+# across the two runs:
+#
+#   python check_comparable.py \
+#     results/panel500_v1/manifests/receptors.json \
+#     results/dhfr_knowns_v1/manifests/receptors.json
+run_name: dhfr_knowns_v1
+
+# Written by fetch_dhfr_actives.py: 18 compounds, three per selectivity bin
+# across seven bins. Regenerate rather than hand-edit -- the matching
+# dhfr_actives.csv carries both potencies, the measurement count behind each
+# median, the assay types and the bin for every line here, which is what makes
+# the selection auditable. The CSV is also the x-axis of the analysis, so
+# editing the .smi without it silently breaks the correlation.
+ligands_smi: /storage/users/kikolski/screening-dock/dhfr_actives.smi
+output_root: /storage/users/kikolski/screening-dock/results
+
+# Identical to panel500.yaml. Any difference makes the two runs incomparable,
+# which is the entire point of this config.
+ligand_ph: 7.4
+skip_tautomers: true
+n_scrub_attempts: 5
+n_etkdg_attempts: 20
+use_random_coords: true
+n_workers: 12
+
+# Two bacterial DHFRs are present here as in the panel, so this key is
+# required: without it analyze.py raises rather than picking one positionally.
+# Must match panel500.yaml or dhfr_selectivity means something different in
+# the two runs.
+primary_bacterial_dhfr: dhfr_ecoli_6xg5
+
+vina:
+  scoring: vina
+  exhaustiveness: 32
+  n_poses: 9
+  seed: 2137
+  cpu: 1
+  min_rmsd: 1.0
+
+receptors:
+  # All three blocks extracted verbatim from panel500.yaml -- keep in sync.
+  # GyrB and FabI are deliberately absent: a folate-site antifolate docked into
+  # the GyrB ATP box returns a number that means nothing, which is the same
+  # mistake as docking a fluoroquinolone there.
+  - name: dhfr_ecoli_7mym
+    pdb_id: 7MYM
+    keep_chains: [A]
+    keep_hetatms: [NAP] # NADP+ -- REQUIRED, TMP binding is cooperative
+    redock_ligand_resname: TOP # verified: TOP = trimethoprim, 21 atoms
+    ph: 7.4
+    notes: >
+      E. coli DHFR ternary complex with trimethoprim and the cofactor. This
+      entry holds NAP (NADP+, oxidized), not NDP -- do not "correct" it to NDP
+      or split_pdb drops the cofactor silently and the M20 loop pocket is
+      destroyed. Chains A, B, C present; chain A only. Chain A also has a free
+      ARG and SO4, both ignored.
+    box:
+      reference_ligand_resname: TOP
+      size: [20.0, 20.0, 20.0]
+  - name: dhfr_ecoli_6xg5 # MATCHED COUNTERPART TO 2W3A
+    pdb_id: 6XG5
+    keep_chains: [A]
+    keep_hetatms: [NDP] # NADPH, reduced -- matches 2W3A exactly. NOT NAP.
+    redock_ligand_resname: TOP
+    ph: 7.4
+    notes: >
+      E. coli K-12 DHFR (folA) with trimethoprim and NADPH at 1.90 A, single
+      chain A. Added because the 7MYM/2W3A pair was not the controlled
+      comparison it was presented as: 7MYM is 3.04 A with NAP (oxidised) while
+      2W3A is 1.50 A with NDP (reduced), so the pair differed in resolution
+      and in cofactor oxidation state at once. Against 2W3A this entry matches
+      the cofactor exactly and cuts the resolution gap from 1.54 A to 0.40 A.
+      7MYM is deliberately retained so the baseline offset can be measured
+      against it rather than assumed away: in the first run every bacterial
+      target sat near -6.3 while 2W3A alone sat at -7.69, flat across ligand
+      size, which is the signature of a receptor artefact rather than
+      selectivity. The entry also holds GOL and CL, both deliberately dropped.
+      Residues 160-165 are an expression tag. Manna et al., Nat Commun 12:2949
+      (2021), doi:10.1038/s41467-021-23191-z.
+    box:
+      reference_ligand_resname: TOP
+      size: [20.0, 20.0, 20.0] # same box as the other two DHFRs
+  - name: dhfr_human_2w3a # SELECTIVITY COUNTER-SCREEN
+    pdb_id: 2W3A
+    keep_chains: [A]
+    keep_hetatms: [NDP] # verified NDP here -- this entry really is NADPH
+    redock_ligand_resname: TOP
+    ph: 7.4
+    notes: >
+      Human DHFR with TMP + NADPH. Unlike 7MYM and 3GR6 this entry genuinely
+      contains NDP (reduced), so the three keep_hetatms lists differ on purpose.
+      Dock the same panel here and report the bacterial-minus-human score
+      differential as a selectivity axis. Chains A, B; chain A only.
+    box:
+      reference_ligand_resname: TOP
+      size: [20.0, 20.0, 20.0]
