@@ -136,7 +136,7 @@ def derive_box(ligand_lines: list[str], spec: BoxSpec) -> tuple[tuple, tuple]:
 
 
 def protonate_with_pdbfixer(in_pdb: Path, out_pdb: Path, ph: float = 7.4,
-                            add_heavy: bool = True) -> Path:
+                            add_heavy: bool = True, seed: int = 2137) -> Path:
     """Add hydrogens at `ph`, and optionally rebuild missing heavy atoms.
 
     add_heavy=False exists because addMissingAtoms() caps the C-terminus with
@@ -144,6 +144,26 @@ def protonate_with_pdbfixer(in_pdb: Path, out_pdb: Path, ph: float = 7.4,
     (3U2D GLU A:230, 4ZVI THR A:392 both die with a 5-valent backbone carbon).
     Without it the unresolved side chains stay unresolved and Meeko's
     --allow_bad_res drops them, which beats docking against invented atoms.
+
+    `seed` is not optional in practice. addMissingAtoms() places each new heavy
+    atom by running an OpenMM minimization, and pdbfixer seeds that integrator
+    only when a seed is passed (pdbfixer 1.12, PDBFixer.addMissingAtoms:
+    `if seed is not None: integrator.setRandomNumberSeed(seed)`). Called
+    without one, as this was, the rebuilt coordinates differ between runs and
+    so does the whole receptor PDBQT.
+
+    That is not cosmetic, because of the add_heavy retry in
+    prepare_receptor(): whether Meeko rejects the OXT cap depends on those
+    coordinates, so an unseeded run can take the add_heavy=True path once and
+    the add_heavy=False path the next time, producing two genuinely different
+    receptors from one input. This is the only candidate left for the GyrB
+    receptor checksums differing between panel500_v1 and gyrb_knowns_v1:
+    check_comparable.py caught the difference, and a field-by-field diff of
+    the two manifests found every other input identical -- boxes, kept
+    hetatms, kept chains, pH, resname, bond orders, cofactor atoms, package
+    versions and the resolved mk_prepare_receptor path.
+
+    Same default as cfg.vina.seed, so the two reproducibility knobs agree.
     """
     from pdbfixer import PDBFixer
     from openmm.app import PDBFile
@@ -153,7 +173,7 @@ def protonate_with_pdbfixer(in_pdb: Path, out_pdb: Path, ph: float = 7.4,
     fixer.missingResidues = {}
     if add_heavy:
         fixer.findMissingAtoms()
-        fixer.addMissingAtoms()
+        fixer.addMissingAtoms(seed=seed)
     fixer.addMissingHydrogens(ph)
     with open(out_pdb, "w", encoding="utf-8") as fh:
         PDBFile.writeFile(fixer.topology, fixer.positions, fh, keepIds=True)
