@@ -45,9 +45,46 @@ def main() -> None:
         raise SystemExit(f"No shard CSVs found in {dock_dir}")
     log.info("Merging %d shard files", len(shards))
 
-    df = pd.concat([pd.read_csv(s) for s in shards], ignore_index=True)
+    frames = []
+    for s in shards:
+        d = pd.read_csv(s)
+        d["_shard"] = s.name
+        log.info("  %s: %d rows", s.name, len(d))
+        frames.append(d)
+    df = pd.concat(frames, ignore_index=True)
+
+    # A row with no ligand or receptor cannot be keyed on, and base_name()
+    # raises TypeError on the NaN pandas leaves there -- which is how this was
+    # found: panel500_v1 merged to 2989 rows where six receptors x 498 ligand
+    # states is 2988, so exactly one row was junk. cmd_dock rewrites scores.csv
+    # after every receptor, so a job ending mid-write leaves a truncated final
+    # line.
+    #
+    # Dropped, but never quietly: the count and the file are logged, and more
+    # than one bad row in a single shard aborts. One partial line is all an
+    # interrupted write can leave behind; several mean the file is structurally
+    # wrong, and merging it would under-report the panel with nothing else to
+    # show for it.
+    bad = df[df["ligand"].isna() | df["receptor"].isna()]
+    if not bad.empty:
+        per_shard = bad["_shard"].value_counts()
+        for name, n in per_shard.items():
+            log.warning("%s: %d row(s) with no ligand or receptor", name, n)
+        if per_shard.max() > 1:
+            raise SystemExit(
+                f"{per_shard.idxmax()} has {per_shard.max()} unkeyable rows, "
+                "more than an interrupted write can leave. Inspect it rather "
+                "than merging: the result would be missing dockings with no "
+                "other sign.")
+        log.warning("dropping %d truncated row(s); %d remain",
+                    len(bad), len(df) - len(bad))
+        df = df.drop(bad.index)
+
+    df = df.drop(columns=["_shard"])
+    before = len(df)
     df = df.drop_duplicates(subset=["ligand", "receptor"], keep="first")
-    log.info("%d rows after dedup", len(df))
+    log.info("%d rows after dedup (%d duplicate(s) removed)",
+             len(df), before - len(df))
 
     lig_index = root / "ligands" / "ligand_index.json"
     smiles_by_name: dict[str, str] = {}
