@@ -17,6 +17,18 @@ log = logging.getLogger("merge")
 
 STATE_RE = re.compile(r"^(?P<base>.+)_(?P<state>\d+)$")
 
+# Every scores*.csv this script writes, so the shard glob can skip them. Add to
+# this list whenever a new one is written into dock_dir -- the glob picks up
+# anything matching, and an output read back as an input is silent: the rows
+# have no ligand or receptor column, so they merge as NaN rather than failing.
+OUTPUT_NAMES = frozenset({"scores_merged.csv", "scores_by_ligand.csv",
+                          "scores_wide.csv"})
+
+# What a real shard must contain. Checked per file as a backstop to
+# OUTPUT_NAMES, so a future output named scores_<something>.csv that nobody
+# remembered to list is skipped rather than silently merged.
+SHARD_COLUMNS = frozenset({"ligand", "receptor", "best_score", "status"})
+
 
 def base_name(ligand: str) -> str:
     m = STATE_RE.match(ligand)
@@ -38,9 +50,15 @@ def main() -> None:
     dock_dir = root / "docking"
     setup_logging("INFO", root / "logs" / "merge.log")
 
-    shards = sorted(dock_dir.glob("scores*.csv"))
-    shards = [s for s in shards if "merged" not in s.name
-              and "by_ligand" not in s.name]
+    # Every CSV this script writes into dock_dir also matches scores*.csv, so
+    # each one has to be excluded by name or the next run reads its own output
+    # back in as an input. scores_wide.csv was added without being listed here
+    # and did exactly that: its 492 rows carry no ligand or receptor column, so
+    # they all arrived as NaN and drop_duplicates collapsed them into a single
+    # row -- which is why the merge reported 2989 rows against the 2988 real
+    # dockings, and why base_name() then died on a float.
+    shards = [s for s in sorted(dock_dir.glob("scores*.csv"))
+              if s.name not in OUTPUT_NAMES]
     if not shards:
         raise SystemExit(f"No shard CSVs found in {dock_dir}")
     log.info("Merging %d shard files", len(shards))
@@ -48,9 +66,20 @@ def main() -> None:
     frames = []
     for s in shards:
         d = pd.read_csv(s)
+        absent = SHARD_COLUMNS - set(d.columns)
+        if absent:
+            log.warning("%s is not a shard CSV (no %s) -- skipping; it looks "
+                        "like a previous output of this script", s.name,
+                        ", ".join(sorted(absent)))
+            continue
         d["_shard"] = s.name
         log.info("  %s: %d rows", s.name, len(d))
         frames.append(d)
+    if not frames:
+        raise SystemExit(
+            f"None of the {len(shards)} scores*.csv in {dock_dir} has the "
+            f"columns of a docking shard ({', '.join(sorted(SHARD_COLUMNS))}). "
+            "Run the dock stage before merging.")
     df = pd.concat(frames, ignore_index=True)
 
     # A row with no ligand or receptor cannot be keyed on, and base_name()
