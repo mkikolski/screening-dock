@@ -156,12 +156,19 @@ def protonate_with_pdbfixer(in_pdb: Path, out_pdb: Path, ph: float = 7.4,
     prepare_receptor(): whether Meeko rejects the OXT cap depends on those
     coordinates, so an unseeded run can take the add_heavy=True path once and
     the add_heavy=False path the next time, producing two genuinely different
-    receptors from one input. This is the only candidate left for the GyrB
-    receptor checksums differing between panel500_v1 and gyrb_knowns_v1:
-    check_comparable.py caught the difference, and a field-by-field diff of
-    the two manifests found every other input identical -- boxes, kept
+    receptors from one input.
+
+    It is NOT, however, why the GyrB receptor checksums differ between
+    panel500_v1 and gyrb_knowns_v1. The prep logs rule that out: jobs 2089 and
+    2107 both logged "retrying without them" for both GyrB receptors at
+    identical atom counts (3U2D 1556, 4ZVI 2784), so both runs ended on the
+    add_heavy=False branch, which never reaches addMissingAtoms. That
+    difference is still unexplained; a field-by-field diff of the two
+    manifests found every recorded input identical (boxes bit-for-bit, kept
     hetatms, kept chains, pH, resname, bond orders, cofactor atoms, package
-    versions and the resolved mk_prepare_receptor path.
+    versions, the resolved mk_prepare_receptor path), and Meeko writes the
+    rigid PDBQT with no path or timestamp in it, so the atoms themselves
+    differ for a reason not visible from the manifests.
 
     Same default as cfg.vina.seed, so the two reproducibility knobs agree.
     """
