@@ -175,7 +175,36 @@ def protonate_with_pdbfixer(in_pdb: Path, out_pdb: Path, ph: float = 7.4,
     from pdbfixer import PDBFixer
     from openmm.app import PDBFile
 
-    fixer = PDBFixer(filename=str(in_pdb))
+    # Pinned to Reference because addMissingHydrogens() MINIMIZES the
+    # hydrogens it adds (pdbfixer 1.12: "The forcefield used when adding and
+    # minimizing hydrogens"), handing self.platform to
+    # Modeller.addHydrogens(). On the multi-threaded CPU platform the force
+    # summation order varies, so the minimizer lands somewhere slightly
+    # different on each run -- and on each machine.
+    #
+    # That is exactly what made the GyrB receptor PDBQTs differ between
+    # panel500_v1 (prepped on serwer2) and gyrb_knowns_v1 (serwer1): heavy
+    # atoms, atom types and partial charges came out bit-identical, while
+    # every single hydrogen moved, by up to 0.26 A (3U2D 353 of 353, 4ZVI 633
+    # of 633). Reference is single-threaded and fixed-order, so prep now
+    # reproduces across nodes.
+    #
+    # Worth knowing before this is treated as urgent: it did not change any
+    # score. Both runs redocked their own co-crystal ligand against these
+    # differing receptors and agreed to three decimals -- 3U2D -8.004,
+    # RMSD 0.535, rank 1; 4ZVI -7.970, RMSD 1.468, rank 5. Vina is
+    # united-atom, so polar hydrogens only flag donors for typing and never
+    # enter the distance terms. Re-prepping is therefore safe for existing
+    # results, and skipping it costs nothing either.
+    platform = None
+    try:
+        from openmm import Platform
+        platform = Platform.getPlatformByName("Reference")
+    except Exception as exc:  # noqa: BLE001 - never block prep over this
+        log.warning("Reference platform unavailable (%s); hydrogen placement "
+                    "will not be reproducible across machines", exc)
+
+    fixer = PDBFixer(filename=str(in_pdb), platform=platform)
     fixer.findMissingResidues()
     fixer.missingResidues = {}
     if add_heavy:
