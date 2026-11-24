@@ -111,12 +111,36 @@ def load(dhfr_dir: Path, panel_csv: Path):
                         "human" if row["measured_log10"] < -GROUP_CUT else "neither")
         rows.append(row)
     missing = set(act) - set(kn)
-    panel = [float(r["dhfr_selectivity"]) for r in
-             csv.DictReader(panel_csv.open(encoding="utf-8"))]
-    return sorted(rows, key=lambda r: -r["measured_log10"]), panel, missing
+
+    # Which bacterial DHFR is the panel's dhfr_selectivity actually built on?
+    # Read from the data, never assumed from the config. The panel and the
+    # reference set are separate runs that can carry different receptor sets --
+    # the panel's per_molecule.csv had no 6XG5 column at all while the
+    # reference run did -- and comparing the panel at one receptor against the
+    # knowns at another is the same cross-receptor error already removed from
+    # merge_results.py and analyze.py. Found here only because this script
+    # made it too, and quoted a panel-at-7MYM figure under a 6XG5 heading.
+    prows = list(csv.DictReader(panel_csv.open(encoding="utf-8")))
+    panel = [float(r["dhfr_selectivity"]) for r in prows]
+    basis = None
+    if prows:
+        human = next((c for c in prows[0] if "dhfr" in c and "human" in c), None)
+        for rec in (c for c in prows[0] if "dhfr" in c and "human" not in c
+                    and not c.startswith("selectivity")):
+            if human and all(
+                    abs((float(r[human]) - float(r[rec])) - float(r["dhfr_selectivity"]))
+                    < 1e-6 for r in prows):
+                basis = rec
+                break
+    return sorted(rows, key=lambda r: -r["measured_log10"]), panel, missing, basis
 
 
-def report(rows, panel, missing, out: Path) -> None:
+def report(rows, panel, missing, basis, out: Path) -> None:
+    if basis is None:
+        print("WARNING could not tell which bacterial DHFR the panel's "
+              "dhfr_selectivity is built on; panel comparisons skipped")
+    else:
+        print(f"panel dhfr_selectivity is built on {basis}")
     if missing:
         print(f"WARNING {len(missing)} reference compound(s) have no score: "
               f"{', '.join(sorted(missing))}")
@@ -134,7 +158,6 @@ def report(rows, panel, missing, out: Path) -> None:
         hum = [r[f"vina_{rec}"] for r in rows if r["group"] == "human"]
         obs, p = permutation_p(bact, hum)
         ref = st.mean(bact)
-        reach = sum(1 for x in panel if x > ref)
         print(f"\n=== {rec} ===")
         print(f"  correlation with measured selectivity   "
               f"Pearson {pearson(exp, v):+.3f}   Spearman {spearman(exp, v):+.3f}")
@@ -144,10 +167,20 @@ def report(rows, panel, missing, out: Path) -> None:
               f"permutation p = {p:.3f}")
         print(f"  knowns with positive selectivity: "
               f"{sum(1 for x in v if x > 0)}/{len(v)}  <- zero is the wrong threshold")
-        print(f"  generated panel: median {st.median(panel):+.3f}, "
-              f"{ref - st.mean(panel):+.3f} kcal/mol below the bacterial-selective mean")
-        print(f"  panel molecules reaching that mean: {reach}/{len(panel)} "
-              f"({100 * reach / len(panel):.1f}%)")
+        # Like-for-like only. Quoting the panel at one bacterial DHFR under
+        # another receptor's heading is the whole error this guard exists for.
+        if basis == rec:
+            reach = sum(1 for x in panel if x > ref)
+            print(f"  generated panel: median {st.median(panel):+.3f}, "
+                  f"{ref - st.mean(panel):+.3f} kcal/mol below the "
+                  f"bacterial-selective mean")
+            print(f"  panel molecules reaching that mean: {reach}/{len(panel)} "
+                  f"({100 * reach / len(panel):.1f}%)")
+        else:
+            print(f"  panel comparison SKIPPED: the panel's dhfr_selectivity is "
+                  f"built on {basis or 'an unknown receptor'}, not {rec}. "
+                  f"Re-run merge_results.py then analyze.py so the panel carries "
+                  f"a selectivity_{rec} column.")
         span_real = (max(exp) - min(exp)) * KCAL_PER_LOG
         span_vina = max(v) - min(v)
         print(f"  dynamic range: {span_real:.1f} kcal/mol of real ddG mapped onto "
@@ -187,6 +220,40 @@ def selftest() -> None:
         got = ("bacterial" if v > GROUP_CUT else
                "human" if v < -GROUP_CUT else "neither")
         assert got == want, (v, got, want)
+    # The basis detection, which is what stops a cross-receptor comparison.
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        t = Path(td)
+        (t / "dhfr_actives.csv").write_text(
+            "name,chembl_id,pref_name,log10_selectivity,heavy_atoms\n"
+            "k1,C1,ALPHA,+3.00,21\nk2,C2,BETA,-3.00,22\n", encoding="utf-8")
+        (t / "per_molecule.csv").write_text(
+            "ligand_base,selectivity_dhfr_ecoli_6xg5,selectivity_dhfr_ecoli_7mym\n"
+            "k1,0.40,0.03\nk2,-2.00,-1.90\n", encoding="utf-8")
+        # Panel whose dhfr_selectivity is human - 7MYM: basis must read 7MYM,
+        # never 6XG5, even though a 6XG5 column is present.
+        p = t / "panel.csv"
+        p.write_text(
+            "ligand_base,dhfr_ecoli_7mym,dhfr_ecoli_6xg5,dhfr_human_2w3a,"
+            "dhfr_selectivity\n"
+            "m1,-6.0,-6.5,-7.4,-1.4\nm2,-6.2,-6.9,-7.0,-0.8\n", encoding="utf-8")
+        rows, panel, missing, basis = load(t, p)
+        assert basis == "dhfr_ecoli_7mym", basis
+        assert len(rows) == 2 and panel == [-1.4, -0.8] and not missing
+        assert [r["group"] for r in rows] == ["bacterial", "human"]
+
+        # A panel whose column matches nothing must report no basis rather than
+        # guessing one, so the comparison is skipped instead of being wrong.
+        p.write_text(
+            "ligand_base,dhfr_ecoli_7mym,dhfr_human_2w3a,dhfr_selectivity\n"
+            "m1,-6.0,-7.4,+9.9\n", encoding="utf-8")
+        assert load(t, p)[3] is None
+
+        # A reference compound with no score is reported, not silently dropped.
+        (t / "per_molecule.csv").write_text(
+            "ligand_base,selectivity_dhfr_ecoli_6xg5,selectivity_dhfr_ecoli_7mym\n"
+            "k1,0.40,0.03\n", encoding="utf-8")
+        assert load(t, p)[2] == {"k2"}
     print("selftest OK")
 
 
@@ -203,10 +270,10 @@ def main() -> None:
     if a.selftest:
         selftest()
         return
-    rows, panel, missing = load(a.dhfr_dir, a.panel_csv)
+    rows, panel, missing, basis = load(a.dhfr_dir, a.panel_csv)
     if not rows:
         raise SystemExit(f"No reference compound in {a.dhfr_dir} has a score.")
-    report(rows, panel, missing, a.out)
+    report(rows, panel, missing, basis, a.out)
 
 
 if __name__ == "__main__":
